@@ -1,0 +1,11 @@
+{"key": "NVDANOW|168.43|11231550", "side": "buy", "votes": {"scout": 1.0, "hunter": 0, "flows": 1.0, "news": 1}, "t": 1795449044.207032}
+{"key": "NVDANOW|163.64|11231657", "side": "buy", "votes": {"scout": 0.0, "hunter": 0, "flows": 1.0, "news": 1}, "t": 1795453033.5795379}
+{"key": "OILNOW|80.73|11231851", "side": "sell", "votes": {"scout": -1.0, "hunter": 0, "flows": 0.0, "news": -1}, "t": 1795459902.945951}
+{"key": "GOLDNOW|3636.62|11232310", "side": "buy", "votes": {"scout": 1.0, "hunter": 1, "flows": -0.5, "news": 1}, "t": 1795475454.6109009}
+{"key": "GOLDNOW|3631.01|11232341", "side": "buy", "votes": {"scout": 0.5, "hunter": 1, "flows": -0.5, "news": 1}, "t": 1795477297.8747032}
+{"key": "GOLDNOW|3628.22|11240012", "side": "buy", "votes": {"scout": 0.5, "hunter": 1, "flows": -0.5, "news": 1}, "t": 1795479143.464791}
+{"key": "GOLDNOW|3634.19|11240458", "side": "buy", "votes": {"scout": 0.5, "hunter": 1, "flows": 0.0, "news": 1}, "t": 1795496284.366845}
+{"key": "GOLDNOW|3635.42|11240513", "side": "buy", "votes": {"scout": 1.0, "hunter": 1, "flows": 0.0, "news": 1}, "t": 1795497197.6502788}
+{"key": "OILNOW|79.39|11240518", "side": "sell", "votes": {"scout": -1.0, "hunter": -1, "flows": 0.5, "news": -1}, "t": 1795497565.457249}
+{"key": "GOLDNOW|3631.64|11240529", "side": "buy", "votes": {"scout": 0.0, "hunter": 1, "flows": 0.0, "news": 1}, "t": 1795498180.320662}
+{"key": "GOLDNOW|3636.59|11240544", "side": "buy", "votes": {"scout": 0.5, "hunter": 1, "flows": 0.0, "news": 1}, "t": 1795499096.277108}

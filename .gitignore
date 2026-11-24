@@ -1,0 +1,6 @@
+tools/trading-safety/
+__pycache__/
+tools/gold-alerts/cache/
+tools/gold-alerts/*.log
+.claude/
+**/.claude/

@@ -1,0 +1,35 @@
+name: recom
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+concurrency:
+  group: recom
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install matplotlib
+      - name: Write the bot settings (from repository secrets, never committed)
+        run: |
+          mkdir -p tools/trading-safety
+          cp tools/trading-safety-template/risk_limits.json tools/trading-safety/
+          {
+            echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}"
+            echo "TELEGRAM_RECOM_ID=${{ secrets.TELEGRAM_RECOM_ID }}"
+            echo "TELEGRAM_CHAT_ID=${{ secrets.TELEGRAM_CHAT_ID }}"
+            echo "BYBIT_DEMO_KEY=${{ secrets.BYBIT_DEMO_KEY }}"
+            echo "BYBIT_DEMO_SECRET=${{ secrets.BYBIT_DEMO_SECRET }}"
+          } > tools/trading-safety/.env
+      - run: python tools/gold-alerts/cloud_run.py
+        env:
+          CI: "true"
+          MPLCONFIGDIR: /tmp/mpl

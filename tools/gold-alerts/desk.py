@@ -1,0 +1,222 @@
+"""The trading DESK: a team of small agents that read the market together before any call is posted to java_recomm.
+
+Built from what the AI-trading videos describe (a swarm of single-job bots under one lead that only speaks when
+something needs a decision): scanner, setup hunter, newsroom, flows, risk skeptic ("what could go wrong?"),
+a lead who decides (only when the backtested Hunter fires), and a reviewer who grades the agents after the trades close and re-weights them.
+
+  python3 desk.py test [GC=F|CL=F]   # every agent's vote for the symbol now, nothing posted
+  python3 desk.py review             # grade the agents on closed calls and update their weights
+
+Every agent returns a vote in [-1, +1] (+ = buy, - = sell, 0 = no opinion) and a short reason. The lead adds the
+weighted votes; a call needs |score| >= THRESHOLD and no veto from Risk. LIVE data only: the price must match the
+TradingView spot within 0.4%, or the Risk agent vetoes (this is what "out of date" looked like before).
+The LLM agent (Newsroom) cannot be backtested; the Scout and Hunter can (live_recom.py backtest). Info only.
+"""
+import json
+import os
+import sys
+import time
+from datetime import datetime, timezone
+
+import gold_alerts as ga
+import live
+import live_recom as lr
+import recom
+import recom_track
+import zone_plan as zp
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+WEIGHTS = os.path.join(HERE, "cache", "desk_weights.json")
+LOG = os.path.join(HERE, "cache", "desk_log.jsonl")
+NEWS = os.path.join(HERE, "cache", "desk_news.json")
+LAST = os.path.join(HERE, "cache", "desk_last.json")
+THRESHOLD = 2.0
+# Confidence sizing (2026-11-24, from the "confidence score sets the size" video): over 446 backtested hunter trades
+# a flat Scout (no trend, no momentum) did worst (gold -0.31R avg) while Scout WITH or AGAINST the hunter both paid.
+# Full size when the market is moving, 0.4x when flat beat flat sizing in all 4 half-samples. Never above 1.0x:
+# the executors' max loss per trade stays the ceiling.
+SIZE_MOVING, SIZE_FLAT = 1.0, 0.4
+BASE_W = {"scout": 1.0, "hunter": 2.0, "news": 1.0, "flows": 1.0}
+SPOT = {"GC=F": "OANDA:XAUUSD", "CL=F": "FX:USOIL", "NVDA": "NASDAQ:NVDA"}
+NAME = {"GC=F": "GOLD", "CL=F": "OIL", "NVDA": "NVDA"}
+
+
+def weights():
+    w = dict(BASE_W)
+    w.update(recom_track.load(WEIGHTS, {}))
+    return w
+
+
+def bars(sym):
+    return [x for x in zp.yahoo_bars(sym, "5d", "5m") if x["v"] is not None]
+
+
+def scout(sym, b):
+    """Trend + momentum + volatility from the 5-minute candles."""
+    E = lr.emas(b)
+    i = len(b) - 2
+    c = b[i]["c"]
+    trend = 1 if E[1][i] > E[2][i] and c > E[2][i] else -1 if E[1][i] < E[2][i] and c < E[2][i] else 0
+    mom = (c - b[i - 12]["c"]) / b[i - 12]["c"]
+    m = 1 if mom > 0.0008 else -1 if mom < -0.0008 else 0
+    return (trend + m) / 2, f"trend {trend:+d}, 1h momentum {100 * mom:+.2f}%"
+
+
+def hunter(sym, b):
+    """The backtested setup rule on the last 2 closed bars (the 5-minute runs are not aligned to bar closes, so one
+    bar can slip between two runs); only a setup under 12 minutes old counts."""
+    E = lr.emas(b)
+    for i in (len(b) - 2, len(b) - 3):
+        if time.time() - b[i]["ts"] > 12 * 60 + 300:
+            continue
+        s = lr.RULE[sym](b, i, E)
+        if s:
+            return (1 if s["side"] == "buy" else -1), f"{lr.RULE[sym].__name__} setup {s['side']}"
+    return 0, "no setup on the last closed bars"
+
+
+def flows(sym):
+    """Where the big money moves: dollar, yields, stocks, fear gauge (TradingView, live)."""
+    q = {k: live.quote(v) for k, v in {"dxy": "TVC:DXY", "y10": "TVC:US10Y", "spx": "SP:SPX", "vix": "TVC:VIX"}.items()}
+    ch = lambda k: (q[k] or {}).get("change") or 0
+    if sym == "GC=F":  # gold likes a weak dollar and falling yields
+        v = (-1 if ch("dxy") > 0.3 else 1 if ch("dxy") < -0.3 else 0) + (-1 if ch("y10") > 1.0 else 1 if ch("y10") < -1.0 else 0)
+        return v / 2, f"dollar {ch('dxy'):+.2f}%, 10y {ch('y10'):+.2f}%"
+    if sym == "NVDA":  # a stock follows the market and the fear gauge
+        v = (1 if ch("spx") > 0.5 else -1 if ch("spx") < -0.5 else 0) + (1 if ch("vix") < -3 else -1 if ch("vix") > 3 else 0)
+        return v / 2, f"S&P {ch('spx'):+.2f}%, VIX {ch('vix'):+.1f}%"
+    v = (1 if ch("spx") > 0.5 else -1 if ch("spx") < -0.5 else 0) + (-1 if ch("dxy") > 0.5 else 1 if ch("dxy") < -0.5 else 0)
+    return v / 2, f"stocks {ch('spx'):+.2f}%, dollar {ch('dxy'):+.2f}%"
+
+
+def newsroom(sym):
+    """Realtime first (news_rt: last-3h headlines, age-weighted net sentiment, refreshed every 2 min); when no
+    recent headline is about the asset, an LLM reads the last 2 days of headlines (cached 30 min).
+    + supports a buy, - against it."""
+    if sym in ("GC=F", "CL=F"):
+        try:
+            import news_rt
+            v, why, n = news_rt.vote(sym)
+            if n:
+                return v, why
+        except Exception as e:
+            ga.log(f"desk news_rt {sym} failed: {e}")
+    cache = recom_track.load(NEWS, {})
+    hit = cache.get(sym)
+    if hit and time.time() - hit["t"] < 1800:
+        return hit["v"], hit["why"]
+    try:
+        r = recom.research(NAME[sym], "buy")
+    except Exception:
+        r = None
+    v = {"support": 1, "against": -1}.get((r or {}).get("verdict"), 0)
+    why = (r or {}).get("en") or "no model answer"
+    cache[sym] = {"t": time.time(), "v": v, "why": why}
+    json.dump(cache, open(NEWS, "w"))
+    return v, why
+
+
+def risk(sym, b):
+    """The skeptic: reasons NOT to trade. Any returned reason is a veto."""
+    out = []
+    now = datetime.now(timezone.utc)
+    spot = live.quote(SPOT[sym])
+    if not spot or abs(b[-1]["c"] - spot["close"]) / spot["close"] > 0.004:
+        out.append("price data out of date vs the live spot")
+    if now.timestamp() - b[-1]["ts"] > 10 * 60:
+        out.append("market closed or no fresh 5-min bar")
+    tr = [max(x["h"], p["c"]) - min(x["l"], p["c"]) for p, x in zip(b[-15:-1], b[-14:])]
+    long_tr = [max(x["h"], p["c"]) - min(x["l"], p["c"]) for p, x in zip(b[-289:-1], b[-288:])]
+    if tr and long_tr and sum(tr) / len(tr) > 3 * sum(long_tr) / len(long_tr):
+        out.append("volatility spike (3x normal)")
+    today = now.strftime("%Y-%m-%d")
+    hhmm = now.hour * 60 + now.minute
+    for d, _ in __import__("regime").EVENTS:
+        if d == today:
+            lo, hi = (18 * 60, 20 * 60 + 30) if now.month == 12 and now.day == 9 else (12 * 60 + 30, 15 * 60)
+            if lo <= hhmm <= hi:
+                out.append("major news release window")
+    hist = recom_track.load(recom_track.HIST, [])[-3:]
+    if len(hist) == 3 and all(h["r"] < 0 for h in hist) and now.timestamp() - hist[-1]["closed"] < 3600:
+        out.append("3 losses in a row: paused for an hour")
+    return out
+
+
+def decide(sym):
+    """The lead: {"side", "score", "votes", "reasons", "veto", "px"}; side None = no call."""
+    b = bars(sym)
+    w = weights()
+    votes, reasons = {}, {}
+    for name, fn in (("scout", lambda: scout(sym, b)), ("hunter", lambda: hunter(sym, b)),
+                     ("flows", lambda: flows(sym)), ("news", lambda: newsroom(sym))):
+        try:
+            votes[name], reasons[name] = fn()
+        except Exception as e:
+            votes[name], reasons[name] = 0, f"agent failed: {e}"
+    veto = risk(sym, b)
+    score = sum(votes[k] * w[k] for k in votes)
+    # A call needs the HUNTER (the only backtested agent: the bred 78% / scalp bot) to fire, and the other agents
+    # must not lean against it. Before this fix the scout + flows + news could post a call on their own; all 3 of
+    # those desk calls had hunter = 0, and that is where the losses came from (2026-11-23 review).
+    h = votes.get("hunter", 0)
+    others = score - h * w["hunter"]
+    side = None
+    if h > 0 and others >= -0.5:
+        side = "buy"
+    elif h < 0 and others <= 0.5:
+        side = "sell"
+    if veto:
+        side = None
+    size = SIZE_MOVING if votes.get("scout") else SIZE_FLAT
+    out = {"sym": sym, "side": side, "score": round(score, 2), "votes": votes, "reasons": reasons, "veto": veto,
+           "px": b[-1]["c"], "size": size, "t": time.time()}
+    try:  # the latest reading per symbol, for the terminal (terminal.py)
+        last = recom_track.load(LAST, {})
+        last[sym] = out
+        json.dump(last, open(LAST, "w"))
+    except Exception:
+        pass
+    return out
+
+
+def log_call(key, dk):
+    os.makedirs(os.path.dirname(LOG), exist_ok=True)
+    with open(LOG, "a") as f:
+        f.write(json.dumps({"key": key, "side": dk["side"], "votes": dk["votes"], "t": time.time()}) + "\n")
+
+
+def review():
+    """The reviewer: grade each agent on closed calls (right = its vote matched the winning side), then nudge its
+    weight within 0.5-2x of the base once it has 20+ graded calls. Small steps, so it cannot over-fit quickly."""
+    hist = {h["key"]: h for h in recom_track.load(recom_track.HIST, [])}
+    rows = [json.loads(x) for x in open(LOG)] if os.path.exists(LOG) else []
+    score = {k: [0, 0] for k in BASE_W}
+    for r in rows:
+        h = hist.get(r["key"])
+        if not h or h["status"] == "shifted":
+            continue
+        win_side = r["side"] if h["r"] > 0 else ("sell" if r["side"] == "buy" else "buy")
+        for k, v in r["votes"].items():
+            if v:
+                score[k][1] += 1
+                score[k][0] += (1 if (v > 0) == (win_side == "buy") else 0)
+    w = recom_track.load(WEIGHTS, {})
+    for k, (ok, n) in score.items():
+        if n >= 20:
+            rate = ok / n
+            w[k] = round(min(2.0, max(0.5, BASE_W[k] * (0.5 + rate))), 2)
+    json.dump(w, open(WEIGHTS, "w"))
+    return score, w
+
+
+if __name__ == "__main__":
+    mode = sys.argv[1] if len(sys.argv) > 1 else "test"
+    if mode == "review":
+        print(review())
+    else:
+        for sym in ([sys.argv[2]] if len(sys.argv) > 2 else ["GC=F", "CL=F"]):
+            d = decide(sym)
+            print(f"\n=== {NAME[sym]} @ {d['px']:.2f}  → {d['side'] or 'NO CALL'}  (score {d['score']}, need ±{THRESHOLD})")
+            for k in d["votes"]:
+                print(f"  {k:7s} {d['votes'][k]:+.1f} × {weights()[k]}  {d['reasons'][k]}")
+            print("  risk   ", d["veto"] or "no veto")

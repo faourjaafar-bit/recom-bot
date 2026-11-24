@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JAVA Trading Desk</title>
+<style>
+  :root {
+    --bg: #07090f; --panel: #0d1220; --panel2: #111829; --line: #1d2740; --text: #e6ebf5; --dim: #7d8aa5;
+    --gold: #f5c451; --green: #2ee59d; --red: #ff5c7a; --blue: #5aa9ff; --violet: #b18cff; --cyan: #4fe3ff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: radial-gradient(1200px 600px at 20% -10%, #14203d 0%, var(--bg) 55%); color: var(--text);
+         font: 13px/1.45 "SF Mono", ui-monospace, Menlo, Consolas, monospace; min-height: 100vh; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo { width: 34px; height: 34px; border-radius: 10px; background: conic-gradient(from 0deg, var(--gold), var(--cyan), var(--violet), var(--gold));
+          box-shadow: 0 0 24px #f5c45155; animation: spin 12s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .brand h1 { font-size: 16px; letter-spacing: .18em; margin: 0; }
+  .brand small { color: var(--dim); letter-spacing: .12em; }
+  .badge { padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--dim); font-size: 11px; }
+  .badge.live { color: var(--green); border-color: #2ee59d55; }
+  .badge.live::before { content: "●"; margin-right: 6px; animation: blink 1.4s infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+  main { padding: 16px 20px 40px; display: grid; gap: 14px; grid-template-columns: repeat(12, 1fr); }
+  .panel { background: linear-gradient(180deg, var(--panel), var(--panel2)); border: 1px solid var(--line); border-radius: 14px; padding: 14px; min-width: 0; }
+  .panel h2 { margin: 0 0 10px; font-size: 11px; letter-spacing: .2em; color: var(--dim); font-weight: 600; display: flex; justify-content: space-between; }
+  .stats { grid-column: span 12; display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+  .stat .v { font-size: 24px; font-weight: 700; margin-top: 4px; }
+  .stat .s { color: var(--dim); font-size: 11px; }
+  .ticker { grid-column: span 12; display: flex; gap: 10px; overflow-x: auto; padding: 10px 14px; }
+  .tick { white-space: nowrap; padding: 6px 12px; border-radius: 8px; background: #0a0f1c; border: 1px solid var(--line); }
+  .tick b { color: var(--dim); font-weight: 500; margin-right: 8px; }
+  .up { color: var(--green); } .down { color: var(--red); } .flat { color: var(--dim); }
+  .desk { grid-column: span 12; }
+  .agents { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+  .agent { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: #0a0f1c; position: relative; overflow: hidden; }
+  .agent::after { content: ""; position: absolute; inset: auto 0 0 0; height: 2px; background: var(--c, var(--blue)); opacity: .8; }
+  .agent .ico { font-size: 20px; } .agent .n { font-weight: 700; letter-spacing: .12em; margin-top: 4px; }
+  .agent .role { color: var(--dim); font-size: 11px; min-height: 30px; }
+  .vote { display: flex; align-items: center; gap: 6px; font-size: 11px; margin-top: 4px; }
+  .vote span:first-child { width: 46px; color: var(--dim); }
+  .bar { flex: 1; height: 6px; background: #151d31; border-radius: 3px; position: relative; }
+  .bar i { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+  .calls { grid-column: span 7; } .equity { grid-column: span 5; }
+  .call { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: #0a0f1c; }
+  .call .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .call .sym { font-size: 16px; font-weight: 700; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 700; }
+  .pill.buy { background: #2ee59d22; color: var(--green); } .pill.sell { background: #ff5c7a22; color: var(--red); }
+  .track { position: relative; height: 34px; margin: 14px 4px 4px; }
+  .track .rail { position: absolute; left: 0; right: 0; top: 14px; height: 6px; border-radius: 3px;
+                 background: linear-gradient(90deg, #ff5c7a66, #2a3350 30%, #2a3350 30%, #2ee59d66); }
+  .track .mk { position: absolute; top: 0; font-size: 10px; color: var(--dim); transform: translateX(-50%); white-space: nowrap; }
+  .track .mk.bot { top: 22px; }
+  .track .now { position: absolute; top: 8px; width: 4px; height: 18px; border-radius: 2px; background: var(--text); box-shadow: 0 0 12px var(--cyan); transform: translateX(-50%); transition: left .6s; }
+  .stream { grid-column: span 7; max-height: 420px; overflow-y: auto; }
+  .ev { display: grid; grid-template-columns: 48px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px dashed #1a2236; }
+  .ev .t { color: var(--dim); }
+  .ev.win .m { color: var(--green); } .ev.loss .m { color: #ffb0bf; } .ev.post .m { color: var(--gold); }
+  .hunters { grid-column: span 5; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid #1a2236; }
+  th { color: var(--dim); font-weight: 500; font-size: 11px; }
+  canvas { width: 100%; height: 190px; display: block; }
+  .muted { color: var(--dim); }
+  .foot { grid-column: span 12; color: var(--dim); font-size: 11px; text-align: center; }
+  @media (max-width: 1000px) {
+    main { grid-template-columns: 1fr; padding: 12px 16px 30px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .agents { grid-template-columns: repeat(2, 1fr); }
+    .calls, .equity, .stream, .hunters, .desk, .stats, .ticker, .foot { grid-column: span 1; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="logo"></div><div><h1>JAVA · TRADING DESK</h1><small>7 AGENTS · ONE SHARED SYSTEM · GOLD · OIL · NVDA · ASIA · LONDON · NEW YORK</small></div></div>
+  <div style="display:flex;gap:8px;align-items:center"><span class="badge">PAPER ACCOUNT</span><span class="badge live" id="clock">LIVE</span></div>
+</header>
+<main>
+  <section class="stats" id="stats"></section>
+  <section class="panel ticker" id="ticker"></section>
+  <section class="panel desk"><h2><span>THE DESK · WHAT EACH AGENT SEES NOW</span><span id="deskt"></span></h2><div class="agents" id="agents"></div></section>
+  <section class="panel calls"><h2><span>OPEN CALLS · LIVE</span><span id="ncalls"></span></h2><div id="calls"></div></section>
+  <section class="panel equity"><h2><span>PAPER EQUITY · 1% RISK PER CALL</span><span id="eqv"></span></h2><canvas id="eq"></canvas>
+    <div id="hist" style="margin-top:10px"></div></section>
+  <section class="panel stream"><h2><span>EXECUTION STREAM · JAVA_RECOMM</span><span class="muted">newest first</span></h2><div id="stream"></div></section>
+  <section class="panel hunters"><h2><span>TRADING TOOL · EXECUTION</span><span id="killb"></span></h2><div id="exec"></div></section>
+  <section class="panel hunters"><h2><span>HUNTER BOTS · BRED &amp; TESTED</span><span id="bred"></span></h2><div id="hunters"></div></section>
+  <div class="foot">Signals and a paper account only · no real orders are placed · not financial advice</div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const fmt = (v, d = 2) => v == null ? "—" : Number(v).toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const cls = v => v > 0 ? "up" : v < 0 ? "down" : "flat";
+const arrow = v => v > 0 ? "▲" : v < 0 ? "▼" : "•";
+const AGENTS = [
+  ["🔭", "SCOUT", "Trend + momentum on the live 5-min candles", "scout", "#5aa9ff"],
+  ["🎯", "HUNTER", "The bred bot: fires only on its tested setup", "hunter", "#f5c451"],
+  ["🌊", "FLOWS", "Dollar, yields, S&P, VIX: where big money moves", "flows", "#4fe3ff"],
+  ["📰", "NEWSROOM", "Reads the latest headlines", "news", "#b18cff"],
+  ["🛑", "SKEPTIC", "What could go wrong? Can veto everything", "risk", "#ff5c7a"],
+  ["👔", "LEAD", "Adds the votes; posts only on agreement", "lead", "#2ee59d"],
+  ["📝", "REVIEWER", "Grades every agent after each closed call", "review", "#9aa7c4"],
+];
+const SYMS = [["GC=F", "GOLD"], ["CL=F", "OIL"], ["NVDA", "NVDA"]];
+
+function bar(v, max = 1) {
+  const w = Math.min(50, Math.abs(v) / max * 50);
+  const left = v >= 0 ? 50 : 50 - w;
+  return `<div class="bar"><i style="left:${left}%;width:${w}%;background:${v >= 0 ? "var(--green)" : "var(--red)"}"></i>
+          <i style="left:50%;width:1px;background:#3a4565"></i></div>`;
+}
+
+function render(s) {
+  const a = s.account, pnl = a.live_equity - a.start;
+  $("stats").innerHTML = [
+    ["PAPER BALANCE", "$" + fmt(a.live_equity), `start $${fmt(a.start, 0)}`],
+    ["P&L", `<span class="${cls(pnl)}">${pnl >= 0 ? "+" : ""}$${fmt(pnl)}</span>`, `${a.total_r >= 0 ? "+" : ""}${a.total_r}R closed · ${a.open_r >= 0 ? "+" : ""}${a.open_r}R open`],
+    ["WIN RATE", a.win_rate == null ? "—" : a.win_rate + "%", `${a.wins} of ${a.trades} closed calls`],
+    ["OPEN CALLS", s.calls.length, s.calls.map(c => c.sym).join(" · ") || "waiting for a setup"],
+    ["BOTS BRED", Object.values(s.bred).reduce((x, b) => x + (b.bred || 0), 0).toLocaleString(), `${Object.values(s.bred).reduce((x, b) => x + (b.survived || 0), 0)} survived unseen data`],
+    ["UPDATED", new Date(s.updated * 1000).toLocaleTimeString("en-GB"), "refreshes every minute"],
+  ].map(([k, v, sub]) => `<div class="panel stat"><h2>${k}</h2><div class="v">${v}</div><div class="s">${sub}</div></div>`).join("");
+
+  $("ticker").innerHTML = s.prices.map(p => `<div class="tick"><b>${p.name}</b>${fmt(p.px, p.px > 1000 ? 1 : 2)}
+     <span class="${cls(p.ch)}"> ${arrow(p.ch)} ${p.ch == null ? "" : (p.ch >= 0 ? "+" : "") + fmt(p.ch) + "%"}</span></div>`).join("");
+
+  const d = s.desk;
+  $("agents").innerHTML = AGENTS.map(([ico, n, role, key, c]) => {
+    const rows = SYMS.map(([sym, nm]) => {
+      const x = d[sym];
+      if (!x) return `<div class="vote"><span>${nm}</span><span class="muted">—</span></div>`;
+      if (key === "risk") return `<div class="vote"><span>${nm}</span><span class="${x.veto && x.veto.length ? "down" : "up"}">${x.veto && x.veto.length ? "VETO: " + x.veto[0] : "clear"}</span></div>`;
+      if (key === "lead") return `<div class="vote"><span>${nm}</span><b class="${x.side === "buy" ? "up" : x.side === "sell" ? "down" : "flat"}">${x.side ? x.side.toUpperCase() : "WAIT"}</b>&nbsp;<span class="muted">${x.score >= 0 ? "+" : ""}${x.score}</span></div>`;
+      if (key === "review") return "";
+      const v = (x.votes || {})[key] || 0;
+      return `<div class="vote" title="${(x.reasons || {})[key] || ""}"><span>${nm}</span>${bar(v)}</div>`;
+    }).join("");
+    const extra = key === "review" ? `<div class="vote muted">${a.trades} calls graded</div><div class="vote muted">weights move after 20+</div>` : "";
+    return `<div class="agent" style="--c:${c}"><div class="ico">${ico}</div><div class="n">${n}</div><div class="role">${role}</div>${rows}${extra}</div>`;
+  }).join("");
+  const ts = Object.values(d).map(x => x.t).filter(Boolean);
+  $("deskt").textContent = ts.length ? "read " + new Date(Math.max(...ts) * 1000).toLocaleTimeString("en-GB") : "";
+
+  $("ncalls").textContent = s.calls.length + " open";
+  $("calls").innerHTML = s.calls.length ? s.calls.map(c => {
+    const lo = Math.min(c.stop, c.t3), hi = Math.max(c.stop, c.t3), pos = v => ((v - lo) / (hi - lo) * 100).toFixed(1);
+    const dec = c.entry > 1000 ? 1 : 2, buy = c.side === "buy";
+    const marks = [["SL", c.stop], ["IN", c.entry], ["TP¹", c.t1], ["TP²", c.t2], ["TP³", c.t3]]
+      .map(([k, v], i) => `<div class="mk ${i % 2 ? "bot" : ""}" style="left:${pos(v)}%">${k} ${fmt(v, dec)}</div>`).join("");
+    return `<div class="call"><div class="top"><div><span class="sym">${c.sym}</span> <span class="pill ${c.side}">${c.side.toUpperCase()}</span>
+      <span class="muted"> @${fmt(c.entry, dec)}</span></div>
+      <div><b class="${cls(c.r)}">${c.move}</b> <span class="muted">${c.r >= 0 ? "+" : ""}${c.r}R · TP passed ${c.passed}/3</span></div></div>
+      <div class="track"><div class="rail" style="${buy ? "" : "transform:scaleX(-1)"}"></div>${marks}
+      <div class="now" style="left:${Math.max(0, Math.min(100, pos(c.px)))}%"></div></div></div>`;
+  }).join("") : `<div class="muted">No open call. The desk posts when its agents agree.</div>`;
+
+  $("eqv").innerHTML = `<span class="${cls(pnl)}">$${fmt(a.live_equity)}</span>`;
+  drawCurve(a.curve.concat([a.live_equity]));
+  $("hist").innerHTML = s.history.length ? "<table><tr><th>CLOSED CALL</th><th>RESULT</th><th>R</th></tr>" + s.history.slice(0, 6).map(h =>
+    `<tr><td>${h.key.split("|")[0].replace("NOW", "").replace("LIVE", "")} @${h.key.split("|")[1]}</td><td>${h.status}</td><td class="${cls(h.r)}">${h.r > 0 ? "+" : ""}${h.r}</td></tr>`).join("") + "</table>" : "";
+
+  $("stream").innerHTML = s.stream.length ? s.stream.map(e => `<div class="ev ${e.kind}"><span class="t">${e.t}</span><span class="m">${e.msg}</span></div>`).join("")
+    : `<div class="muted">Nothing yet.</div>`;
+
+  renderExec(s.execution);
+  const tot = Object.values(s.bred);
+  $("bred").textContent = tot.length ? tot.reduce((x, b) => x + (b.bred || 0), 0).toLocaleString() + " bred" : "";
+  const FWD = { XAUUSD: "GC=F", USOIL: "CL=F", NVDA: "NVDA" };
+  const fwdKey = sym => FWD[sym.split(" ")[0]];
+  $("hunters").innerHTML = "<table><tr><th>MARKET</th><th>BOT</th><th>TRAIN</th><th>UNSEEN</th><th>LIVE FORWARD</th></tr>" + s.hunters.map(h => {
+    const f = (s.forward || {})[fwdKey(h.sym)] || {};
+    const fw = f.n ? `<span class="${cls(f.avg)}">${f.win}% wins</span><br><span class="muted">${f.n} done · ${f.avg >= 0 ? "+" : ""}${f.avg}R</span>`
+                   : `<span class="muted">${f.open ? f.open + " running" : "waiting for 1st signal"}</span>`;
+    const b = h.bot, stop = Array.isArray(b[3]) ? (b[3][0] === "pips" ? b[3][1] + " pips" : b[3][1] + " ATR") : "";
+    return `<tr><td><b>${h.sym}</b></td><td>${b[0]} · ${b[1]} · ${b[2]}<br><span class="muted">stop ${stop} · ${b[4]}R</span></td>
+      <td>${h.in ? `<span class="${cls(h.in.avg)}">${h.in.avg >= 0 ? "+" : ""}${h.in.avg}R</span><br><span class="muted">${h.in.n} trades</span>` : "—"}</td>
+      <td>${h.out ? `<span class="${cls(h.out.avg)}">${h.out.avg >= 0 ? "+" : ""}${h.out.avg}R</span><br><span class="muted">${h.out.n} · ${h.out.win}% wins</span>` : "—"}</td>
+      <td>${fw}</td></tr>`;
+  }).join("") + "</table>";
+}
+
+function renderExec(x) {
+  if (!x) return;
+  $("killb").innerHTML = x.kill ? '<span class="down">🛑 KILL SWITCH ON</span>' : '<span class="up">● running</span>';
+  const keys = Object.entries(x.keys).map(([k, v]) => `${k}: <span class="${v ? "up" : "down"}">${v ? "connected" : "no keys"}</span>`).join(" · ");
+  const rows = x.orders.length ? "<table><tr><th>ACCOUNT</th><th>CALL</th><th>SYMBOL</th><th>STATUS</th></tr>" + x.orders.map(o =>
+    `<tr><td>${o.acct}</td><td>${o.call}</td><td>${o.symbol || ""}</td><td class="${o.status === "open" ? "up" : o.status === "failed" ? "down" : "muted"}">${o.status}${o.why ? " · " + o.why : ""}</td></tr>`).join("") + "</table>"
+    : '<div class="muted">No orders yet. Add the demo keys and the next call is traded automatically.</div>';
+  $("exec").innerHTML = `<div style="margin-bottom:8px">Alpaca: <b>${x.alpaca}</b> · Bybit: <b>${x.bybit}</b> · live orders need your OK: <b>${x.approval ? "yes" : "no"}</b></div>
+    <div class="muted" style="margin-bottom:8px">${keys} · phone control: /status /kill /resume in your bot chat</div>${rows}`;
+}
+
+function drawCurve(pts) {
+  const cv = $("eq"), r = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  cv.width = w * r; cv.height = h * r;
+  const g = cv.getContext("2d"); g.scale(r, r); g.clearRect(0, 0, w, h);
+  if (pts.length < 2) return;
+  const lo = Math.min(...pts), hi = Math.max(...pts), pad = (hi - lo) * 0.15 || 10;
+  const X = i => 8 + i * (w - 16) / (pts.length - 1), Y = v => h - 10 - (v - lo + pad) / (hi - lo + 2 * pad) * (h - 20);
+  const up = pts[pts.length - 1] >= pts[0], col = up ? "#2ee59d" : "#ff5c7a";
+  g.strokeStyle = "#1d2740"; g.setLineDash([3, 4]); g.beginPath(); g.moveTo(0, Y(pts[0])); g.lineTo(w, Y(pts[0])); g.stroke(); g.setLineDash([]);
+  const grad = g.createLinearGradient(0, 0, 0, h); grad.addColorStop(0, col + "55"); grad.addColorStop(1, col + "00");
+  g.beginPath(); pts.forEach((v, i) => i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v)));
+  g.lineTo(X(pts.length - 1), h); g.lineTo(X(0), h); g.closePath(); g.fillStyle = grad; g.fill();
+  g.beginPath(); pts.forEach((v, i) => i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v))); g.strokeStyle = col; g.lineWidth = 2; g.stroke();
+  g.fillStyle = col; g.beginPath(); g.arc(X(pts.length - 1), Y(pts[pts.length - 1]), 4, 0, 7); g.fill();
+}
+
+async function tick() {
+  try { const r = await fetch("state.json?" + Date.now()); render(await r.json()); }
+  catch (e) { $("clock").textContent = "OFFLINE"; }
+}
+setInterval(() => { $("clock").textContent = new Date().toLocaleTimeString("en-GB") + " · LIVE"; }, 1000);
+tick(); setInterval(tick, 5000);
+</script>
+</body>
+</html>

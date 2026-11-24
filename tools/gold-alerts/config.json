@@ -1,0 +1,62 @@
+{
+  "symbol": "GC=F",
+  "lang": "ar",
+  "levels": [
+    3500,
+    3725,
+    3870,
+    4150
+  ],
+  "events": [
+    {
+      "date": "2026-11-25",
+      "name": "US Core PCE inflation + GDP",
+      "note": "hotter than 0.3% = more rate-hike fear = pressure on gold",
+      "name_ar": "التضخم الأمريكي PCE الأساسي + الناتج المحلي",
+      "note_ar": "أعلى من 0.3% = مخاوف أكبر من رفع الفائدة = ضغط على الذهب"
+    },
+    {
+      "date": "2026-12-04",
+      "name": "US jobs report (NFP)",
+      "note": "weak jobs = fewer hikes = support for gold",
+      "name_ar": "تقرير الوظائف الأمريكي (NFP)",
+      "note_ar": "وظائف ضعيفة = رفع أقل للفائدة = دعم للذهب"
+    },
+    {
+      "date": "2026-12-09",
+      "name": "Fed interest-rate decision",
+      "note": "biggest event of the month for gold",
+      "name_ar": "قرار الفائدة الأمريكية (الفيدرالي)",
+      "note_ar": "أهم حدث للذهب هذا الشهر"
+    },
+    {
+      "date": "2026-12-10",
+      "name": "US CPI inflation",
+      "note": "above 3.9% = more hike fear",
+      "name_ar": "التضخم الأمريكي CPI",
+      "note_ar": "أعلى من 3.9% = مخاوف أكبر من رفع الفائدة"
+    }
+  ],
+  "account": 400,
+  "risk_pct": 1,
+  "leverage": 5,
+  "stocks": [
+    "NVDA",
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "AMZN",
+    "META",
+    "TSLA",
+    "AVGO",
+    "AMD",
+    "TSM",
+    "PLTR",
+    "NFLX",
+    "JPM",
+    "V",
+    "LLY",
+    "XOM"
+  ],
+  "hunter_only": true
+}

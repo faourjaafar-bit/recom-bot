@@ -1,0 +1,20 @@
+{
+  "_status": "ACCEPTED by user. Paper mode only. Live trading needs a separate explicit approval.",
+  "_changed_2026_11_20": "User approved fully automatic orders on PAPER only. Live orders still need a yes per order.",
+  "mode": "paper",
+  "brokers": {
+    "us_stocks": "alpaca (paper only until you approve live)",
+    "forex": "oanda practice account (not yet chosen)"
+  },
+  "max_position_pct_of_equity": 5,
+  "max_loss_per_trade_pct_of_equity": 1,
+  "max_daily_loss_pct_of_equity": 2,
+  "max_open_positions": 3,
+  "order_types_allowed": ["limit", "stop_limit"],
+  "order_types_blocked": ["market"],
+  "order_expiry": "day",
+  "require_human_approval_per_order": true,
+  "paper_auto_orders": true,
+  "kill_switch_file": "KILL_SWITCH",
+  "forex_max_leverage": 10
+}

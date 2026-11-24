@@ -1,0 +1,172 @@
+{
+ "OILNOW|80.73|11231851": {
+  "status": "skipped",
+  "symbol": "CLUSDT",
+  "why": "call older than 10 minutes"
+ },
+ "GOLDPLAN|3603|1795468810": {
+  "status": "failed",
+  "symbol": "XAUUSDT",
+  "qty": 2.372,
+  "order": {
+   "symbol": "XAUUSDT",
+   "side": "Sell",
+   "orderType": "Limit",
+   "qty": "2.372",
+   "positionIdx": 0,
+   "price": "3640.27",
+   "timeInForce": "GTC",
+   "takeProfit": "3514.98",
+   "stopLoss": "3684.46",
+   "tpslMode": "Full"
+  },
+  "error": "You must agree to the Trading Terms before trading this contract."
+ },
+ "GOLDNOW|3636.62|11232310": {
+  "status": "failed",
+  "symbol": "XAUUSDT",
+  "qty": 2.372,
+  "order": {
+   "symbol": "XAUUSDT",
+   "side": "Buy",
+   "orderType": "Limit",
+   "qty": "2.372",
+   "positionIdx": 0,
+   "price": "3643.60",
+   "timeInForce": "GTC",
+   "takeProfit": "3645.75",
+   "stopLoss": "3629.76",
+   "tpslMode": "Full"
+  },
+  "error": "You must agree to the Trading Terms before trading this contract."
+ },
+ "GOLDNOW|3631.01|11232341": {
+  "status": "failed",
+  "symbol": "XAUUSDT",
+  "qty": 2.375,
+  "order": {
+   "symbol": "XAUUSDT",
+   "side": "Buy",
+   "orderType": "Limit",
+   "qty": "2.375",
+   "positionIdx": 0,
+   "price": "3638.76",
+   "timeInForce": "GTC",
+   "takeProfit": "3640.91",
+   "stopLoss": "3624.92",
+   "tpslMode": "Full"
+  },
+  "error": "You must agree to the Trading Terms before trading this contract."
+ },
+ "GOLDNOW|3628.22|11240012": {
+  "status": "failed",
+  "symbol": "XAUUSDT",
+  "qty": 2.376,
+  "order": {
+   "symbol": "XAUUSDT",
+   "side": "Buy",
+   "orderType": "Limit",
+   "qty": "2.376",
+   "positionIdx": 0,
+   "price": "3637.57",
+   "timeInForce": "GTC",
+   "takeProfit": "3639.72",
+   "stopLoss": "3623.73",
+   "tpslMode": "Full"
+  },
+  "error": "You must agree to the Trading Terms before trading this contract."
+ },
+ "GOLDNOW|3634.19|11240458": {
+  "status": "failed",
+  "symbol": "XAUUSDT",
+  "qty": 2.361,
+  "order": {
+   "symbol": "XAUUSDT",
+   "side": "Buy",
+   "orderType": "Limit",
+   "qty": "2.361",
+   "positionIdx": 0,
+   "price": "3641.29",
+   "timeInForce": "GTC",
+   "takeProfit": "3643.44",
+   "stopLoss": "3627.45",
+   "tpslMode": "Full"
+  },
+  "error": "You must agree to the Trading Terms before trading this contract."
+ },
+ "GOLDNOW|3635.42|11240513": {
+  "status": "failed",
+  "symbol": "XAUUSDT",
+  "qty": 2.358,
+  "order": {
+   "symbol": "XAUUSDT",
+   "side": "Buy",
+   "orderType": "Limit",
+   "qty": "2.358",
+   "positionIdx": 0,
+   "price": "3645.68",
+   "timeInForce": "GTC",
+   "takeProfit": "3647.83",
+   "stopLoss": "3631.83",
+   "tpslMode": "Full"
+  },
+  "error": "You must agree to the Trading Terms before trading this contract."
+ },
+ "OILNOW|79.39|11240518": {
+  "status": "failed",
+  "symbol": "CLUSDT",
+  "qty": 108.06,
+  "order": {
+   "symbol": "CLUSDT",
+   "side": "Sell",
+   "orderType": "Limit",
+   "qty": "108.06",
+   "positionIdx": 0,
+   "price": "79.48",
+   "timeInForce": "GTC",
+   "takeProfit": "77.12",
+   "stopLoss": "80.32",
+   "tpslMode": "Full"
+  },
+  "error": "You must agree to the Crude Oil Trading Terms before trading this contract."
+ },
+ "GOLDNOW|3631.64|11240529": {
+  "status": "failed",
+  "symbol": "XAUUSDT",
+  "qty": 2.363,
+  "order": {
+   "symbol": "XAUUSDT",
+   "side": "Buy",
+   "orderType": "Limit",
+   "qty": "2.363",
+   "positionIdx": 0,
+   "price": "3638.24",
+   "timeInForce": "GTC",
+   "takeProfit": "3640.39",
+   "stopLoss": "3624.40",
+   "tpslMode": "Full"
+  },
+  "error": "You must agree to the Trading Terms before trading this contract."
+ },
+ "GOLDNOW|3636.59|11240544": {
+  "status": "failed",
+  "symbol": "XAUUSDT",
+  "qty": 2.366,
+  "order": {
+   "symbol": "XAUUSDT",
+   "side": "Buy",
+   "orderType": "Limit",
+   "qty": "2.366",
+   "positionIdx": 0,
+   "price": "3642.60",
+   "timeInForce": "GTC",
+   "takeProfit": "3644.74",
+   "stopLoss": "3628.77",
+   "tpslMode": "Full"
+  },
+  "error": "You must agree to the Trading Terms before trading this contract."
+ },
+ "_base_usdt": 60000.0,
+ "_day": "2026-11-24",
+ "_day_start": 400.0
+}
