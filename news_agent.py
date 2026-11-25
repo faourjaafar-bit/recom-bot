@@ -46,7 +46,8 @@ THEMES = [("fed", r"\b(fed|fomc|powell|williams|waller|logan|bowman|rate hikes?|
           ("dollar", r"\b(dollar|dxy|greenback|yields?|treasur)"),
           ("geo", r"\b(war|attack|missile|escalat|invasion|conflict|tensions?|ceasefire|truce|hormuz|sanction)"),
           ("flows", r"\b(etf|central banks?|safe[- ]haven|outflows?|inflows?|profit[- ]taking)\b"),
-          ("supply", r"\b(opec|inventor|stockpile|output|production|supply)\b")]
+          ("supply", r"\b(opec|inventor|stockpile|output|production|supply)\b"),
+          ("probe", r"\b(megaspeed|smuggl|probe|investigat|congress|briefing|export|entity list|doj)")]
 CUT = 1.5
 HALF_LIFE = 45 * 60
 WINDOW = 3 * 3600
@@ -139,7 +140,7 @@ def learn():
     st = news_rt.refresh()
     L = recom_track.load(LEARN, {"graded": {}, "theme": {}, "source": {}})
     bars = {}
-    for s in ("GC=F", "CL=F"):
+    for s in ("GC=F", "CL=F", "NVDA"):
         for rng in ("2d", "1d"):  # small ranges: big responses sometimes arrive cut off
             try:
                 bars[s] = [x for x in zp.yahoo_bars(s, rng, "5m") if x["c"]]
@@ -198,7 +199,7 @@ def vote(sym):
 def shift_against(sym, side, window=20 * 60):
     """Text of a fresh strong reason against an open call, or None: a score-2 headline (|score| >= 2) or a US
     data surprise against the side, in the last 20 min. recom_track.watch() checks this every minute."""
-    if sym not in ("GC=F", "CL=F"):
+    if sym not in ("GC=F", "CL=F", "NVDA"):
         return None
     sign = 1 if side == "buy" else -1
     now = time.time()

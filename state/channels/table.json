@@ -1,0 +1,67 @@
+{
+ "mmsignalsfx": {
+  "calls": 50,
+  "scored": 43,
+  "not_filled": 2,
+  "no_data": 5,
+  "open": 0,
+  "win_rate": 70,
+  "tp1_rate": 70,
+  "avg_r": 0.14,
+  "total_r": 6.04,
+  "no_sl": false,
+  "from": "2026-10-05"
+ },
+ "signalsproviderfx": {
+  "calls": 50,
+  "scored": 29,
+  "not_filled": 13,
+  "no_data": 8,
+  "open": 0,
+  "win_rate": 48,
+  "tp1_rate": 34,
+  "avg_r": -0.042,
+  "total_r": -1.22,
+  "no_sl": true,
+  "from": "2026-03-31"
+ },
+ "anabelsignals": {
+  "calls": 46,
+  "scored": 25,
+  "not_filled": 15,
+  "no_data": 6,
+  "open": 0,
+  "win_rate": 20,
+  "tp1_rate": 20,
+  "avg_r": -0.487,
+  "total_r": -12.18,
+  "no_sl": false,
+  "from": "2026-04-18"
+ },
+ "fxgoldsignals": {
+  "calls": 42,
+  "scored": 21,
+  "not_filled": 6,
+  "no_data": 15,
+  "open": 0,
+  "win_rate": 57,
+  "tp1_rate": 57,
+  "avg_r": -0.032,
+  "total_r": -0.67,
+  "no_sl": false,
+  "from": "2024-09-05"
+ },
+ "XAUUSD_Signals": {
+  "calls": 50,
+  "scored": 39,
+  "not_filled": 6,
+  "no_data": 5,
+  "open": 0,
+  "win_rate": 46,
+  "tp1_rate": 38,
+  "avg_r": 0.083,
+  "total_r": 3.25,
+  "no_sl": false,
+  "from": "2026-07-24"
+ }
+}

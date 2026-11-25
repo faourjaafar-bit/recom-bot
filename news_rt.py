@@ -20,10 +20,12 @@ GN = "https://news.google.com/rss/search?hl=en-US&gl=US&ceid=US:en&q="
 FEEDS = [GN + urllib.parse.quote("gold price OR XAUUSD OR bullion when:1h"),
          GN + urllib.parse.quote("crude oil OR brent OR WTI OR OPEC when:1h"),
          GN + urllib.parse.quote("Fed rate OR dollar index OR treasury yields when:1h"),
+         GN + urllib.parse.quote("Nvidia OR \"Jensen Huang\" OR Megaspeed when:2h"),
          "https://www.fxstreet.com/rss/news", "https://oilprice.com/rss/main"]
 
 SUBJECT = {"GC=F": re.compile(r"\b(gold|xau|bullion|precious metal)", re.I),
-           "CL=F": re.compile(r"\b(oil|crude|brent|wti|opec|petroleum|gasoline)", re.I)}
+           "CL=F": re.compile(r"\b(oil|crude|brent|wti|opec|petroleum|gasoline)", re.I),
+           "NVDA": re.compile(r"\b(nvidia|nvda|jensen huang|megaspeed|blackwell|rubin)\b", re.I)}
 MACRO = re.compile(r"\b(fed|fomc|powell|rate cut|rate hike|dollar|dxy|treasury|yields?|inflation|cpi|payrolls|nfp)\b", re.I)
 UP = r"(bullish|ris(e|es|ing)|jump|surg|climb|gain|rall|soar|advanc|rebound|record high|higher|up \d|extends? gains)"
 DOWN = r"(bearish|pull(s|ed)? back|fall|fell|slip|drop|declin|tumbl|slid|sink|plung|retreat|lower|down \d|loss|extends? losses)"
@@ -48,6 +50,18 @@ RULES = [
     (r"\b(inventor(y|ies)|stockpiles?|stocks)\b.{0,30}\b(build|rise|rose|climb|jump)", 0, -1),
     (r"\b(sanction|supply (disruption|outage)|pipeline (attack|outage)|hurricane|red sea|houthi|strait of hormuz)", 0, +1),
     (r"\b(oversupply|glut|demand (worries|concerns|fears)|recession)", 0, -1),
+]
+
+
+# NVDA (user, 2026-11-25: NYT on the Congress briefing about Jensen Huang and Alice Huang's role at Singapore's
+# Megaspeed: "follow up on news and accordingly we do our investments and recoms"). + supports a buy.
+NVDA_RULES = [
+    (r"\b(megaspeed|smuggl|diver(t|sion)|probe|investigat|subpoena|indict|charg(e|ed|es)|lawsuit|antitrust|fine[ds]?)\b", -1),
+    (r"\b(congress|senat|lawmakers?|briefing|national security|doj|commerce department|bis)\b", -0.5),
+    (r"\b(export (ban|curb|control|restriction)s?|ban(s|ned)? .{0,20}chips?|chip curbs?|entity list|tariffs?)\b", -1),
+    (r"\b(downgrad|cut .{0,15}(target|forecast|guidance)|miss(es|ed)? (estimates|expectations)|delay)", -1),
+    (r"\b(upgrad|rais(e|es|ed) .{0,15}(target|forecast|guidance)|beat(s)? (estimates|expectations)|record (revenue|sales))", +1),
+    (r"\b(export (licen[cs]e|approval)s? (granted|approved)|curbs? (eased|lifted)|cleared|deal with|partnership|orders? for)\b", +1),
 ]
 
 
@@ -84,9 +98,14 @@ def score(title):
         return out
     for sym, subj in SUBJECT.items():
         about, macro = bool(subj.search(s)), sym == "GC=F" and bool(MACRO.search(s))
+        if sym == "NVDA" and not about:
+            continue
         if not (about or macro):
             continue
-        v = sum(g if sym == "GC=F" else o for pat, g, o in RULES if re.search(pat, s))
+        if sym == "NVDA":
+            v = sum(w for pat, w in NVDA_RULES if re.search(pat, s))
+        else:
+            v = sum(g if sym == "GC=F" else o for pat, g, o in RULES if re.search(pat, s))
         if about and not v:  # plain price headline about the asset itself: "Gold climbs to ..."
             v = 1 if re.search(UP, s) else -1 if re.search(DOWN, s) else 0
         out[sym] = max(-2, min(2, v))

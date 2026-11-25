@@ -22,7 +22,7 @@ from datetime import datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "cache", "channels")
-CHANNELS = ["mmsignalsfx", "signalsproviderfx", "anabelsignals"]
+CHANNELS = ["mmsignalsfx", "signalsproviderfx", "anabelsignals", "fxgoldsignals", "XAUUSD_Signals"]
 NUM = r"(\d{1,2},?\d{3}(?:\.\d+)?)"
 
 
@@ -75,6 +75,19 @@ def parse(name, text):
         c.update(entry=num(e.group(1)), t1=num(g.group(1)))
         c["stop"] = num(sl.group(1)) if sl else c["entry"] - (c["t1"] - c["entry"])
         c["no_sl"] = not sl
+    elif name == "XAUUSD_Signals":  # "ENTER: #XAUUSD long trade / CURRENT PRICE: x / STOP LOSS: y / TAKE PROFIT: z"
+        m = re.search(r"ENTER:\s*#(?:XAUUSD|GOLD)\s+(long|short)", s, re.I)
+        e, sl, tp = (re.search(k + r":\s*" + NUM, s, re.I) for k in ("CURRENT PRICE", "STOP LOSS", "TAKE PROFIT"))
+        if not (m and e and sl and tp):
+            return None
+        c.update(side="buy" if m.group(1).lower() == "long" else "sell", entry=num(e.group(1)), stop=num(sl.group(1)), t1=num(tp.group(1)))
+    elif name == "fxgoldsignals":  # "Gold Sell 4038 / SL. 4050 / TP. 4030 / TP. 4025 / TP. 4015"
+        m = re.search(r"(?:gold|xauusd)\W*(buy|sell)\W*(?:now\W*)?@?\s*" + NUM, s, re.I)
+        sl = re.search(r"\bSL\W*" + NUM, s, re.I)
+        tps = [num(x) for x in re.findall(r"\bTP\s*\d?\W*" + NUM, s, re.I)]
+        if not (m and sl and tps) or re.search(r"\b(booked|running|update|hit)\b", s, re.I):
+            return None
+        c.update(side=m.group(1).lower(), entry=num(m.group(2)), stop=num(sl.group(1)), **{f"t{i + 1}": v for i, v in enumerate(tps[:3])})
     elif name == "signalsproviderfx":
         if re.search(r"VIP|SALE|win rate", s) and not re.search(r"#freesignal|#gold|#xauusd", s, re.I):
             return None

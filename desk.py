@@ -93,7 +93,7 @@ def newsroom(sym):
     """Realtime first (news_rt: last-3h headlines, age-weighted net sentiment, refreshed every 2 min); when no
     recent headline is about the asset, an LLM reads the last 2 days of headlines (cached 30 min).
     + supports a buy, - against it."""
-    if sym in ("GC=F", "CL=F"):
+    if sym in ("GC=F", "CL=F", "NVDA"):
         try:
             import news_agent  # newsroom v2: top sources, data surprises, learned weights (2026-11-24)
             v, why, n = news_agent.vote(sym)

@@ -21,7 +21,9 @@ STATE = os.path.join(ROOT, "state")
 CACHE = os.path.join(HERE, "cache")
 FILES = ("recom_open.json", "recom_history.json", "live_recom.json", "forward.json", "desk_log.jsonl",
          "desk_weights.json", "desk_last.json", "exec_control_offset.json", "bybit_exec_demo.json", "bybit_terms.json",
-         "market_events.json")  # the alerts already sent, so a close is never posted twice
+         "market_events.json",  # the alerts already sent, so a close is never posted twice
+         # trusted-channel trials + backtest table (checked every minute by recom_track watch, 2026-11-25)
+         "channels/trial_mmsignalsfx.json", "channels/trial_xauusd_signals.json", "channels/table.json")
 # The phone's /kill creates this file; it lives in state/ so it survives between runs (a /kill sent while the Mac is off still holds).
 SAFE = os.path.join(ROOT, "tools", "trading-safety")
 KILL = "KILL_SWITCH"
@@ -32,6 +34,7 @@ def pull():
     os.makedirs(CACHE, exist_ok=True)
     for f in FILES:
         if os.path.exists(os.path.join(STATE, f)):
+            os.makedirs(os.path.dirname(os.path.join(CACHE, f)), exist_ok=True)
             shutil.copy(os.path.join(STATE, f), os.path.join(CACHE, f))
     os.makedirs(SAFE, exist_ok=True)
     if os.path.exists(os.path.join(STATE, KILL)):
@@ -47,6 +50,7 @@ def push():
         if os.path.exists(src):
             old = open(os.path.join(STATE, f), "rb").read() if os.path.exists(os.path.join(STATE, f)) else None
             if old != open(src, "rb").read():
+                os.makedirs(os.path.dirname(os.path.join(STATE, f)), exist_ok=True)
                 shutil.copy(src, os.path.join(STATE, f))
                 changed = True
     live_kill, kept_kill = os.path.join(SAFE, KILL), os.path.join(STATE, KILL)

@@ -20,6 +20,13 @@ import recom_track
 HERE = os.path.dirname(os.path.abspath(__file__))
 FILE = os.path.join(HERE, "cache", "channels", "trial_mmsignalsfx.json")
 NAME, GOAL, GATE = "mmsignalsfx", 30, 0.05
+# every channel on a live 30-call trial -> its display name. Only NAME is relayed to java_recomm (through relay());
+# the others are scored only (user, 2026-11-25: "add to trial" for XAUUSD_Signals, backtest +0.08R over 39 calls)
+TRIALS = {"mmsignalsfx": "Market Makers", "XAUUSD_Signals": "XAUUSD_Signals"}
+
+
+def trial_file(name):
+    return os.path.join(HERE, "cache", "channels", f"trial_{name.lower()}.json")
 NEED = 4  # checks out of 7 a source call must pass to be posted (user, 2026-11-24)
 FINAL = ("win", "loss", "be", "timeout", "not filled")
 
@@ -134,10 +141,22 @@ def score(calls):
     return done, avg, wins
 
 
-def check():
+def check_all():
+    """Every trial channel; returns {name: state}."""
+    out = {}
+    for name in TRIALS:
+        try:
+            out[name] = check(name)
+        except Exception as e:
+            ga.log(f"channel_track {name} failed: {e}")
+    return out
+
+
+def check(name=NAME):
+    label, FILE = TRIALS[name], trial_file(name)
     st = recom_track.load(FILE, {"started": time.time(), "calls": [], "last_id": None, "verdict": None})
     try:
-        msgs = ce.page(NAME)
+        msgs = ce.page(name)
     except Exception as e:
         ga.log(f"channel_track page failed: {e}")
         msgs = []
@@ -147,17 +166,18 @@ def check():
         if m["id"] <= st["last_id"]:
             continue
         st["last_id"] = m["id"]
-        c = ce.parse(NAME, m["text"])
+        c = ce.parse(name, m["text"])
         if c:
             c.update(id=m["id"], ts=m["ts"], status="new")
             st["calls"].append(c)
             tps = " / ".join(f"{c[k]:.1f}" for k in ("t1", "t2", "t3") if c.get(k))
-            notify(f"📡 Market Makers #{len(st['calls'])}: {c['side'].upper()} gold @{c['entry']:.1f} "
-                   f"SL {c['stop']:.1f} TP {tps}: checking it through the JAVA filter")
-            try:  # the user wants the filtered calls in java_recomm now (2026-11-24); the trial score keeps running
-                c["relayed"] = bool(relay(c))
-            except Exception as e:
-                ga.log(f"relay failed: {e}")
+            notify(f"📡 {label} #{len(st['calls'])}: {c['side'].upper()} gold @{c['entry']:.1f} "
+                   f"SL {c['stop']:.1f} TP {tps}: " + ("checking it through the JAVA filter" if name == NAME else "trial only, not posted"))
+            if name == NAME:
+                try:  # the user wants the filtered calls in java_recomm now (2026-11-24); the trial score keeps running
+                    c["relayed"] = bool(relay(c))
+                except Exception as e:
+                    ga.log(f"relay failed: {e}")
     live_calls = [c for c in st["calls"] if c["status"] not in FINAL]
     if live_calls:
         try:
@@ -173,13 +193,13 @@ def check():
                 c.update(res)
                 done, avg, wins = score(st["calls"])
                 icon = "🟢▲" if c.get("r", 0) > 0 else "🔴▼" if c.get("r", 0) < 0 else "⚪"
-                notify(f"📡 Market Makers #{st['calls'].index(c) + 1} {c['side'].upper()} @{c['entry']:.1f}: {res['status']}"
+                notify(f"📡 {label} #{st['calls'].index(c) + 1} {c['side'].upper()} @{c['entry']:.1f}: {res['status']}"
                        + (f" {icon} {c['r']:+.2f}R" if "r" in res else "")
                        + f"\nTrial {len(done)}/{GOAL}: {wins} wins, avg {avg:+.2f}R")
     done, avg, wins = score(st["calls"])
     if len(done) >= GOAL and not st["verdict"]:
         st["verdict"] = "PASS" if avg > GATE else "FAIL"
-        notify(f"📡 Market Makers 30-call trial: {st['verdict']}\n{wins}/{len(done)} wins, avg {avg:+.2f}R (gate +{GATE}R)\n"
+        notify(f"📡 {label} 30-call trial: {st['verdict']}\n{wins}/{len(done)} wins, avg {avg:+.2f}R (gate +{GATE}R)\n"
                + ("Ready to feed java_recomm as a credited source, with your OK." if st["verdict"] == "PASS" else "Not used."))
     json.dump(st, open(FILE, "w"), indent=1)
     return st
@@ -187,11 +207,12 @@ def check():
 
 if __name__ == "__main__":
     if sys.argv[1:] == ["status"]:
-        st = recom_track.load(FILE, {"calls": []})
-        done, avg, wins = score(st["calls"])
-        print(f"{len(st['calls'])} calls seen, {len(done)}/{GOAL} scored, {wins} wins, avg {avg:+.2f}R, verdict {st.get('verdict')}")
-        for c in st["calls"][-10:]:
-            print(" ", time.strftime("%d %H:%M", time.localtime(c["ts"])), c["side"], c["entry"], c["status"], c.get("r"))
+        for name, label in TRIALS.items():
+            st = recom_track.load(trial_file(name), {"calls": []})
+            done, avg, wins = score(st["calls"])
+            print(f"{label}: {len(st['calls'])} calls seen, {len(done)}/{GOAL} scored, {wins} wins, avg {avg:+.2f}R, verdict {st.get('verdict')}")
+            for c in st["calls"][-10:]:
+                print(" ", time.strftime("%d %H:%M", time.localtime(c["ts"])), c["side"], c["entry"], c["status"], c.get("r"))
     else:
-        st = check()
-        print(f"tracking {NAME}: {len(st['calls'])} calls, last post id {st['last_id']}")
+        for name, st in check_all().items():
+            print(f"tracking {TRIALS[name]}: {len(st['calls'])} calls, last post id {st['last_id']}")

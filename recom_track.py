@@ -574,6 +574,15 @@ if __name__ == "__main__":
             exec_control.poll()
         except Exception as e:
             ga.log(f"exec_control failed: {e}")
+        try:  # trusted channels every minute (user, 2026-11-25: "5 mins evaluation is so much, 1 min max"): new Market
+            # Makers calls -> JAVA filter -> java_recomm, trials scored. Run with the venv python (charts need matplotlib).
+            import subprocess
+            vpy = os.path.join(HERE, ".venv", "bin", "python")
+            subprocess.run([vpy if os.path.exists(vpy) else sys.executable, os.path.join(HERE, "channel_track.py")],
+                           capture_output=True, text=True, timeout=50, cwd=HERE,
+                           env=dict(os.environ, MPLCONFIGDIR=os.path.join(HERE, "cache", "mpl")))
+        except Exception as e:
+            ga.log(f"channel_track run failed: {e}")
         try:  # once a day: the regression checks for every mistake the user caught (selfcheck.py)
             mark = os.path.join(HERE, "cache", "selfcheck_day.txt")
             today = time.strftime("%Y-%m-%d")

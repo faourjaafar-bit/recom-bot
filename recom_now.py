@@ -185,11 +185,12 @@ def main():
         else:
             print(f"[{path}]\n{text}\n")
     # java_recomm gets only the 3-line calls; results come from recom_track.watch() (congrats / hard luck)
-    if mode == "send":  # @@ also reads Market Makers: new calls through the JAVA filter (channel_track.py, user 2026-11-24)
+    if mode == "send":  # trusted channels are checked every minute by recom_track watch (2026-11-25); @@ shows their status
         try:
             import channel_track
-            st = channel_track.check()
-            print(f"Market Makers: {len(st['calls'])} calls seen, last post {st['last_id']}")
+            for name in channel_track.TRIALS:
+                st = recom_track.load(channel_track.trial_file(name), {"calls": [], "last_id": None})
+                print(f"{channel_track.TRIALS[name]}: {len(st['calls'])} calls seen, last post {st['last_id']}")
         except Exception as e:
             ga.log(f"@@ channel check failed: {e}")
 
