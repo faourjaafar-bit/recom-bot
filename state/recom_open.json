@@ -1,1 +1,23 @@
-{}
+{
+ "GOLDMM|3473.5|11251507": {
+  "sym": "GC=F",
+  "gold": true,
+  "side": "sell",
+  "entry": 3473.5,
+  "stop": 3486.0,
+  "t1": 3467.0,
+  "t2": 3451.0,
+  "t3": 3438.5,
+  "posted": 1795619266.970761,
+  "valid": 1795633666.9706717,
+  "filled": null,
+  "passed": 0,
+  "status": "pending",
+  "hold": 28800,
+  "kind": "relay",
+  "size": 1.0,
+  "msg": 238,
+  "win_at": 3,
+  "close_by": 1795644000.0
+ }
+}

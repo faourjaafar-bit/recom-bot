@@ -1,6 +1,21 @@
 {
  "started": 1795539754.4105651,
- "calls": [],
- "last_id": 33198,
+ "calls": [
+  {
+   "side": "sell",
+   "entry": 3473.5,
+   "stop": 3486.0,
+   "t1": 3467.0,
+   "t2": 3451.0,
+   "id": 33199,
+   "ts": 1795619118.0,
+   "status": "loss",
+   "relayed": true,
+   "passed": 0,
+   "r": -1.0,
+   "pips": -125
+  }
+ ],
+ "last_id": 33201,
  "verdict": null
 }
