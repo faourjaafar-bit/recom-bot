@@ -187,6 +187,7 @@ def main():
                 if c.get("desk"):
                     import desk
                     desk.log_call(c["key"], c["desk"])
+                    desk.mark_seen(c["sym"], c["desk"].get("bar_ts"))
                 replace_plan(c["sym"] if c["sym"] != "GOLD" else "GC=F", chan)
                 recom_track.add({"key": c["key"], "plan": c["plan"], "market": True, "hold": c["hold"], "kind": "now", "msg": ok, "win_at": c["plan"].get("win_at", 3),
                                  "ysym": c["sym"] if c["sym"] != "GOLD" else "GC=F"})

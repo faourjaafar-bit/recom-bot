@@ -76,16 +76,37 @@ def scout(sym, b):
     return (trend + m) / 2, f"trend {trend:+d}, 1h momentum {100 * mom:+.2f}%"
 
 
+SEEN = os.path.join(HERE, "cache", "hunter_seen.json")  # last setup bar posted per symbol: never post one twice
+_fired = {}
+
+
+def mark_seen(sym, ts):
+    seen = recom_track.load(SEEN, {})
+    seen[sym] = max(seen.get(sym, 0), ts or 0)
+    json.dump(seen, open(SEEN, "w"))
+
+
 def hunter(sym, b):
-    """The backtested setup rule on the last 2 closed bars (the 5-minute runs are not aligned to bar closes, so one
-    bar can slip between two runs); only a setup under 12 minutes old counts."""
-    E = lr.emas(b)
-    for i in (len(b) - 2, len(b) - 3):
-        if time.time() - b[i]["ts"] > 12 * 60 + 300:
+    """The backtested setup rule on the newest finished bars.
+    Real-time bars (TV_BARS: gold, NVDA): the last 2 closed bars, setup under 12 minutes old.
+    Yahoo bars (oil) run ~10 min late: only grid-aligned bars Yahoo has finished (its last bar is still filling),
+    setup under 30 minutes old. On 2026-11-25 the old check missed 5 of 7 oil setups. Entering 10 min late kept the
+    oil edge in the backtest (+0.14R over 60 days), unlike gold. A bar already posted is never used again."""
+    seen = recom_track.load(SEEN, {}).get(sym, 0)
+    if sym in TV_BARS:
+        rows, idx, max_age = b, (len(b) - 2, len(b) - 3), 12 * 60 + 300
+    else:
+        rows = [x for x in b if x["ts"] % 300 == 0 and x.get("v")][:-1]
+        idx, max_age = (len(rows) - 1, len(rows) - 2), 30 * 60
+    E = lr.emas(rows)
+    for i in idx:
+        if i < 0 or time.time() - rows[i]["ts"] > max_age or rows[i]["ts"] <= seen:
             continue
-        s = lr.RULE[sym](b, i, E)
+        s = lr.RULE[sym](rows, i, E)
         if s:
+            _fired[sym] = rows[i]["ts"]
             return (1 if s["side"] == "buy" else -1), f"{lr.RULE[sym].__name__} setup {s['side']}"
+    _fired.pop(sym, None)
     return 0, "no setup on the last closed bars"
 
 
@@ -240,6 +261,7 @@ def decide(sym):
         moving = 1
     size = SIZE_MOVING if moving else SIZE_FLAT
     out = {"sym": sym, "side": side, "score": round(score, 2), "votes": votes, "reasons": reasons, "veto": veto,
+           "bar_ts": _fired.get(sym),
            "px": b[-1]["c"], "size": size, "t": time.time()}
     try:  # the latest reading per symbol, for the terminal (terminal.py)
         last = recom_track.load(LAST, {})
