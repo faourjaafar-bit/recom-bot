@@ -145,8 +145,8 @@ def simulate(c, bars):
         if b["l"] <= c["entry"] <= b["h"]:
             fill = b["ts"]
             break
-    if fill is None:
-        return {"status": "not filled"}
+    if fill is None:  # "not filled" only once 24 h of bars have passed; before that it is still waiting
+        return {"status": "not filled" if after[-1]["ts"] - c["ts"] > 24 * 3600 else "pending"}
     passed, stop = 0, c["stop"]
     for b in after:
         if b["ts"] < fill:

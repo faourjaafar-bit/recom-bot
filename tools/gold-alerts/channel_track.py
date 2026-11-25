@@ -41,13 +41,11 @@ def notify(text):
 
 
 def spot_bars():
-    """Gold 1-min futures bars shifted to spot by the live basis (futures last close minus the TradingView spot)."""
-    import live
-    import zone_plan as zp
-    bars = [x for x in zp.yahoo_bars("GC=F", "5d", "1m") if x["c"]]
-    spot = (live.quote("OANDA:XAUUSD") or {}).get("close")
-    s = bars[-1]["c"] - spot if spot and bars else 0
-    return [{"ts": x["ts"], "o": x["o"] - s, "h": x["h"] - s, "l": x["l"] - s, "c": x["c"] - s} for x in bars]
+    """Real-time spot gold 1-minute bars (TradingView OANDA:XAUUSD, about the last 25 h). Was Yahoo futures minus a
+    live basis: on 2026-11-25 that marked XAUUSD_Signals' BUY 3487.6 "not filled" while spot traded there and then
+    hit its 3539.3 target."""
+    import tvbars
+    return tvbars.bars("OANDA:XAUUSD", "1", 1500, timeout=40)
 
 
 def relay(c):
@@ -178,7 +176,8 @@ def check(name=NAME):
                     c["relayed"] = bool(relay(c))
                 except Exception as e:
                     ga.log(f"relay failed: {e}")
-    live_calls = [c for c in st["calls"] if c["status"] not in FINAL]
+    live_calls = [c for c in st["calls"] if c["status"] not in FINAL
+                  or (c["status"] == "not filled" and time.time() - c["ts"] < 24 * 3600)]  # re-check early "not filled"
     if live_calls:
         try:
             bars = spot_bars()
