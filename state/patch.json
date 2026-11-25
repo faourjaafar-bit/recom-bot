@@ -49,27 +49,8 @@
    "r": 0.11
   }
  ],
- "open": {
-  "GOLDPLAN|3522.0|11251718": {
-   "sym": "GC=F",
-   "gold": true,
-   "side": "sell",
-   "entry": 3522.0,
-   "stop": 3537.0,
-   "t1": 3505.0,
-   "t2": 3488.0,
-   "t3": 3467.0,
-   "posted": 1795627130.8716018,
-   "valid": 1795637930.871603,
-   "filled": null,
-   "passed": 0,
-   "status": "pending",
-   "hold": 10800,
-   "kind": "analyst",
-   "size": 1.0,
-   "msg": 261,
-   "win_at": 3,
-   "close_by": 1795637928.424343
-  }
- }
+ "open": {},
+ "cancel": [
+  "GOLDPLAN|3522.0|11251718"
+ ]
 }

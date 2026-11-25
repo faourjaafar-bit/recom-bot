@@ -171,12 +171,17 @@ def apply_patch():
         for h in hist:
             h.update(pt.get("set", {}).get(h.get("key"), {}))
         json.dump(hist, open(HIST, "w"), indent=1)
+        if pt.get("cancel"):  # orders cancelled by hand: stop following them, no result
+            with lock():
+                op = load(OPEN, {})
+                if any(op.pop(k, None) for k in pt["cancel"]):
+                    json.dump(op, open(OPEN, "w"), indent=1)
         if pt.get("open"):  # calls posted from outside the cloud run: follow them here (never one already closed)
             done = {h.get("key") for h in hist}
             with lock():
                 op = load(OPEN, {})
                 for k, t in pt["open"].items():
-                    if k not in op and k not in done:
+                    if k not in op and k not in done and k not in pt.get("cancel", []):
                         op[k] = t
                 json.dump(op, open(OPEN, "w"), indent=1)
     except Exception as e:
