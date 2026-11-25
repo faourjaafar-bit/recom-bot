@@ -157,7 +157,7 @@ def live_bars(sym):
 
 def apply_patch():
     """One-off record corrections pushed to the cloud as state/patch.json: {"set": {key: fields}, "drop": [keys],
-    "add": [records]}.
+    "add": [records], "open": {key: open record}}.
     Idempotent, so it can stay in place."""
     path = os.path.join(HERE, "..", "..", "state", "patch.json")
     if not os.path.exists(path):
@@ -171,6 +171,14 @@ def apply_patch():
         for h in hist:
             h.update(pt.get("set", {}).get(h.get("key"), {}))
         json.dump(hist, open(HIST, "w"), indent=1)
+        if pt.get("open"):  # calls posted from outside the cloud run: follow them here (never one already closed)
+            done = {h.get("key") for h in hist}
+            with lock():
+                op = load(OPEN, {})
+                for k, t in pt["open"].items():
+                    if k not in op and k not in done:
+                        op[k] = t
+                json.dump(op, open(OPEN, "w"), indent=1)
     except Exception as e:
         ga.log(f"recom patch failed: {e}")
 
