@@ -47,6 +47,23 @@
    "be": true,
    "status": "win",
    "r": 0.11
+  },
+  {
+   "key": "OILNOW|83.6|11251730",
+   "sym": "CL=F",
+   "side": "sell",
+   "entry": 83.6,
+   "stop": 84.1,
+   "t1": 83.1,
+   "t2": 82.6,
+   "t3": 82.1,
+   "win_at": 3,
+   "posted": 1795627800,
+   "filled": 1795627800,
+   "exit": 83.48,
+   "passed": 0,
+   "status": "closed",
+   "r": 0.24
   }
  ],
  "open": {},
