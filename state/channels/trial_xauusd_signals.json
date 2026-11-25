@@ -1,6 +1,16 @@
 {
  "started": 1795595294.637014,
- "calls": [],
- "last_id": 4626,
+ "calls": [
+  {
+   "side": "buy",
+   "entry": 3487.556,
+   "stop": 3452.978,
+   "t1": 3539.256,
+   "id": 4627,
+   "ts": 1795627323.0,
+   "status": "not filled"
+  }
+ ],
+ "last_id": 4627,
  "verdict": null
 }
