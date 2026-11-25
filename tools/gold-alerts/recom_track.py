@@ -156,7 +156,8 @@ def live_bars(sym):
 
 
 def apply_patch():
-    """One-off record corrections pushed to the cloud as state/patch.json: {"set": {key: fields}, "drop": [keys]}.
+    """One-off record corrections pushed to the cloud as state/patch.json: {"set": {key: fields}, "drop": [keys],
+    "add": [records]}.
     Idempotent, so it can stay in place."""
     path = os.path.join(HERE, "..", "..", "state", "patch.json")
     if not os.path.exists(path):
@@ -165,6 +166,8 @@ def apply_patch():
         pt = json.load(open(path))
         hist = load(HIST, [])
         hist = [h for h in hist if h.get("key") not in pt.get("drop", [])]
+        have = {h.get("key") for h in hist}
+        hist += [h for h in pt.get("add", []) if h.get("key") not in have]
         for h in hist:
             h.update(pt.get("set", {}).get(h.get("key"), {}))
         json.dump(hist, open(HIST, "w"), indent=1)

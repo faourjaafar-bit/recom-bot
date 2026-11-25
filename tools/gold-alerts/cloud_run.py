@@ -63,7 +63,7 @@ def push():
         run("git", "-c", "user.name=recom-bot", "-c", "user.email=bot@users.noreply.github.com",
             "commit", "-m", "state")
         for _ in range(3):
-            if run("git", "pull", "--rebase", "-X", "theirs").returncode == 0 and run("git", "push").returncode == 0:
+            if run("git", "pull", "--rebase", "--autostash", "-X", "theirs").returncode == 0 and run("git", "push").returncode == 0:
                 break
             time.sleep(2)
 
