@@ -135,6 +135,43 @@ def add(sig):
     json.dump(op, open(OPEN, "w"), indent=1)
 
 
+# Real-time 1-minute prices for following calls (2026-11-25): Yahoo futures ran ~$16 above spot and ~10 min late, so
+# a GOLD SELL 3473.5 was booked as stopped at 3486 while spot never passed 3472.4 (it went on to hit TP3).
+TV_TRACK = {"GC=F": "OANDA:XAUUSD", "CL=F": "FX:USOIL"}
+
+
+def live_bars(sym):
+    """1-minute bars from TradingView in real time (spot for gold / oil, the stock itself otherwise); Yahoo if that fails."""
+    try:
+        import live
+        import tvbars
+        tv = TV_TRACK.get(sym) or live.tv_symbol(sym)
+        if tv:
+            b = tvbars.bars(tv, "1", 600)
+            if b and time.time() - b[-1]["ts"] < 10 * 60:
+                return b
+    except Exception as e:
+        ga.log(f"recom live_bars {sym} failed, using Yahoo: {e}")
+    return zp.yahoo_bars(sym, "5d", "1m")
+
+
+def apply_patch():
+    """One-off record corrections pushed to the cloud as state/patch.json: {"set": {key: fields}, "drop": [keys]}.
+    Idempotent, so it can stay in place."""
+    path = os.path.join(HERE, "..", "..", "state", "patch.json")
+    if not os.path.exists(path):
+        return
+    try:
+        pt = json.load(open(path))
+        hist = load(HIST, [])
+        hist = [h for h in hist if h.get("key") not in pt.get("drop", [])]
+        for h in hist:
+            h.update(pt.get("set", {}).get(h.get("key"), {}))
+        json.dump(hist, open(HIST, "w"), indent=1)
+    except Exception as e:
+        ga.log(f"recom patch failed: {e}")
+
+
 def past_close(t, bars):
     """The call's closing time has passed (market close, or its holding time) with no bar after it yet: close it now
     at the last price, instead of at the next session's open."""
@@ -478,7 +515,7 @@ def watch(send=True):
         gold_msgs, stock_msgs = [], []
         for key, t in list(op.items()):
             try:
-                bars = zp.yahoo_bars(t["sym"], "5d", "1m")
+                bars = live_bars(t["sym"])
             except Exception as e:
                 ga.log(f"recom watch {key} bars failed: {e}")
                 continue
@@ -563,6 +600,7 @@ def watch(send=True):
 
 if __name__ == "__main__":
     if sys.argv[1:] == ["watch"]:
+        apply_patch()
         watch()
         try:  # market open / close and signal-hours alerts to java_recomm (market_events.py)
             import market_events

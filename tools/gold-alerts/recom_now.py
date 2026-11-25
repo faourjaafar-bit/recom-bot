@@ -49,6 +49,15 @@ def gold_call(sym="GC=F"):
         return None
     side, px = dk["side"], dk["px"]
     d = 1 if side == "buy" else -1
+    # never post an entry that is not the live price (2026-11-25: two NVDA sells at yesterday's 155.38 close while
+    # NVDA traded near 142 were booked as instant wins)
+    import live
+    tv = desk.TV_BARS.get(sym) or live.tv_symbol(sym)
+    q = live.quote(tv) if tv else None
+    if not q or abs(px - q["close"]) / q["close"] > 0.004:
+        print(f"{sym}: NO CALL, entry {px} is not the live price {q and q['close']}")
+        ga.log(f"recom_now {sym} stale entry {px} vs live {q and q.get('close')}: no call")
+        return None
     import live_recom
     import breed
     plan = breed.plan(sym, side, px, live_recom.stop_dist(sym, desk.bars(sym)))  # the live bot's stop + tested target

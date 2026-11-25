@@ -50,7 +50,7 @@ def weights():
 # Real-time 5-minute bars (tvbars.py). Yahoo's GC=F runs ~10 min late: the hunter only saw half-formed setup bars and
 # missed all 6 gold setups on 2026-11-25; entering 10 min late also erased the gold edge. Tested on OANDA:XAUUSD bars
 # (30 Oct - 25 Nov): 95 trades +0.19R, both halves positive. Oil stays on Yahoo: on TV spot its edge was ~0R.
-TV_BARS = {"GC=F": "OANDA:XAUUSD"}
+TV_BARS = {"GC=F": "OANDA:XAUUSD", "NVDA": "NASDAQ:NVDA"}  # NVDA: Yahoo gave yesterday's close at the open
 
 
 def bars(sym):

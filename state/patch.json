@@ -1,0 +1,3 @@
+{"note": "2026-11-25 corrections: GOLDMM sell never hit its stop on spot (high 3472.4) and reached TP3 3438.5; the two NVDA sells used yesterday's 155.38 close as entry (real price ~142) and are void",
+ "set": {"GOLDMM|3473.5|11251507": {"status": "win", "passed": 3, "exit": 3438.5, "r": 1.71}},
+ "drop": ["NVDANOW|155.38|11251431", "NVDANOW|155.38|11251436"]}
