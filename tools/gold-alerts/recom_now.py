@@ -185,6 +185,13 @@ def main():
         else:
             print(f"[{path}]\n{text}\n")
     # java_recomm gets only the 3-line calls; results come from recom_track.watch() (congrats / hard luck)
+    if mode == "send":  # @@ also reads Market Makers: new calls through the JAVA filter (channel_track.py, user 2026-11-24)
+        try:
+            import channel_track
+            st = channel_track.check()
+            print(f"Market Makers: {len(st['calls'])} calls seen, last post {st['last_id']}")
+        except Exception as e:
+            ga.log(f"@@ channel check failed: {e}")
 
 
 def market_shifted(sym, chan):

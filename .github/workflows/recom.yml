@@ -8,10 +8,11 @@ concurrency:
   cancel-in-progress: false
 permissions:
   contents: write
+  actions: write  # each run queues the next one (cloud_run.next_run)
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -33,3 +34,4 @@ jobs:
         env:
           CI: "true"
           MPLCONFIGDIR: /tmp/mpl
+          GH_TOKEN: ${{ github.token }}

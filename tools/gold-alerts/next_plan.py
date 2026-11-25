@@ -37,8 +37,8 @@ def build():
 
 def send():
     cfg = json.load(open(os.path.join(HERE, "config.json"), encoding="utf-8"))
-    if cfg.get("hunter_only"):  # user, 2026-11-24: only the tested Hunter bots post calls
-        return print("next_plan: hunter_only is on in config.json, no plan posted")
+    # hunter_only does not block the plan: it comes from the tested hourly v2 system (189 trades, +0.24R), and the user
+    # wants the expectation after every close (2026-11-25: "no summary, no expectations").
     plan, text = build()
     if not plan:
         return print("no plan for the next session")

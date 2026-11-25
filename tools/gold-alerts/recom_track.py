@@ -159,17 +159,22 @@ def step(t, bars, margin=1800):
                 continue
         if t["status"] != "open":
             return
-        hit_stop = (x["h"] >= t["stop"]) if d < 0 else (x["l"] <= t["stop"])
+        # every call is followed to TP3 (user, 2026-11-24: "where is TP2 and TP3"); after TP1 the stop moves to the
+        # entry, so a call that hit a target can no longer lose. Same bar touching stop and target = stop.
+        stop = t["entry"] if t["passed"] >= 1 else t["stop"]
+        hit_stop = (x["h"] >= stop) if d < 0 else (x["l"] <= stop)
         best = x["l"] if d < 0 else x["h"]
+        if hit_stop:
+            if t["passed"] >= 1:
+                t["status"], t["exit"], t["be"] = "win", t["entry"], True
+            else:
+                t["status"], t["exit"] = "loss", t["stop"]
+            return
         for i, k in enumerate(("t1", "t2", "t3"), 1):
             if (best - t[k]) * d >= 0:
                 t["passed"] = max(t["passed"], i)
-        if hit_stop:
-            t["status"], t["exit"] = "loss", t["stop"]
-            return
-        w = t.get("win_at", 3)  # 3 for a scalp call; 1 for a high-win call (its tested exit is TP1)
-        if t["passed"] >= w:
-            t["status"], t["exit"] = "win", t[f"t{w}"]
+        if t["passed"] >= 3:
+            t["status"], t["exit"] = "win", t["t3"]
             return
         if (t.get("close_by") and x["ts"] >= t["close_by"]) or \
                 x["ts"] - t["filled"] > (t.get("hold") or (GOLD_HOLD if t["gold"] else STOCK_HOLD)):
@@ -187,6 +192,14 @@ def move(t, lang, to):
     if t["gold"] or t["sym"] == "CL=F":  # gold 1 pip = $0.10, oil 1 pip = $0.01
         return L[lang]["pip"].format(v=d / (0.1 if t["gold"] else 0.01), d=d)
     return L[lang]["pt"].format(d=d, p=100 * d / t["entry"])
+
+
+def realized_r(t, to):
+    """R of the whole call when a third is booked at each target it reached and the rest closes at `to`."""
+    n = min(t.get("passed", 0), 3)
+    if not n:
+        return r_of(t, to)
+    return (sum(r_of(t, t[f"t{i}"]) for i in range(1, n + 1)) + (3 - n) * r_of(t, to)) / 3
 
 
 def r_of(t, to):
@@ -232,8 +245,14 @@ def close_out(key, t, op, hist, now):
         return
     if t["status"] != "expired":
         r = -1.0 if t["status"] == "loss" else None
-        hist.append({"key": key, "status": t["status"], "r": round(r if r is not None else r_of(t, t["exit"]), 2),
+        hist.append({"key": key, "status": t["status"], "r": round(r if r is not None else realized_r(t, t["exit"]), 2),
                      "closed": now, **{k: t.get(k) for k in LEVELS}})  # levels kept for the workflow replay
+        if t["status"] == "loss":  # learn from it: what moved the market (news_agent.lesson, owner chat)
+            try:
+                import news_agent
+                news_agent.lesson(t, key)
+            except Exception as e:
+                ga.log(f"lesson failed {key}: {e}")
     del op[key]  # closed trades are reported once
 
 
@@ -347,7 +366,7 @@ def close_all(note_ar, note_en, syms=None):
             px = (live.quote(spot.get(t["sym"], t["sym"])) or {}).get("close")
             if not px:
                 continue
-            r = r_of(t, px)
+            r = realized_r(t, px)
             f = (lambda v: f"{v:.1f}") if t["gold"] else (lambda v: f"{v:.2f}")
             mv = move(t, "en", px).split(" (")[0]
             try:
@@ -423,12 +442,19 @@ def short(t, before):
         out.append(f"✅ {f(t['entry'])} تم التنفيذ / filled")
     if t["status"] == "expired":
         out.append("⌛ أُلغيت، لم يُنفَّذ / cancelled, not filled")
-    w = t.get("win_at", 3)  # the target where the call counts as a win (TP1 for a high-win bot)
-    top = w if t["status"] == "win" else min(t["passed"], w - 1)
-    for i in range(before[1] + 1, top + 1):
+    for i in range(before[1] + 1, min(t["passed"], 3) + 1):
         p = t[f"t{i}"]
-        out.append(f"TP{SUP[i]} {f(p)}🔥💥❤️ {move(t, 'en', p).split(' (')[0]}\n"
-                   + ("🏆🥳 مبروك Congrats! صفقة ناجحة" if i == w else "👏🎉 مبروك Congrats!"))
+        line = f"TP{SUP[i]} {f(p)}🔥💥❤️ {move(t, 'en', p).split(' (')[0]}\n"
+        if i == 3:
+            line += "🏆🥳 مبروك Congrats! الأهداف الثلاثة تحققت · all 3 targets hit, صفقة ناجحة"
+        else:
+            line += f"👏🎉 مبروك Congrats! ➡️ الهدف التالي · next TP{SUP[i + 1]} {f(t[f't{i + 1}'])}"
+            if i == 1:
+                line += f"\n🔒 الوقف إلى الدخول · stop moved to entry {f(t['entry'])}: no loss now"
+        out.append(line)
+    if t["status"] == "win" and t.get("be"):
+        out.append(f"🔒 {f(t['entry'])} خروج على الدخول بعد TP{SUP[t['passed']]} · out at entry after TP{SUP[t['passed']]}\n"
+                   f"✅ صفقة رابحة · a winning call: {realized_r(t, t['exit']):+.2f}R booked")
     if t["status"] == "loss":
         out.append(f"😮SL {f(t['stop'])} {move(t, 'en', t['stop']).split(' (')[0]}\n"
                    "🍀 حظ سيئ Hard luck، نعوّضها بالتوصية التالية")
@@ -461,6 +487,45 @@ def watch(send=True):
             before = (t["status"], t["passed"])
             step(t, bars, margin=60)
             past_close(t, bars)
+            if (t["status"], t["passed"]) == before and t["status"] == "open" and t.get("msg"):
+                # EMERGENCY (user, 2026-11-24): fresh news turning against the call. Price confirms (0.25R+ against,
+                # or a 0.3R move against in the last 5 min) -> close at once with the reason; not yet -> one caution
+                try:
+                    import news_agent
+                    why = news_agent.shift_against(t["sym"], t["side"])
+                except Exception as e:
+                    why = None
+                    ga.log(f"news shift check failed {key}: {e}")
+                if why:
+                    px = bars[-1]["c"]
+                    r = r_of(t, px)
+                    r5 = r - r_of(t, bars[-6]["c"]) if len(bars) > 6 else 0
+                    if t["passed"] >= 1:  # a target is already booked and the stop sits at the entry: no emergency
+                        why = None
+                    f = (lambda v: f"{v:.1f}") if t["gold"] else (lambda v: f"{v:.2f}")
+                    out = gold_msgs if t["gold"] else stock_msgs
+                    if why and (r <= -0.25 or r5 <= -0.3):
+                        out.append((f"🚨 إغلاق طارئ · EMERGENCY CLOSE {f(px)} {move(t, 'en', px).split(' (')[0]}\n"
+                                    f"⚠️ الأخبار تقلب السوق · News is shifting the market:\n{why}\n"
+                                    + ("🎉 مبروك Congrats! خرجنا بربح" if r > 0 else "🍀 حظ سيئ Hard luck، خسارة أصغر من الوقف · smaller than the stop"),
+                                    t["msg"]))
+                        t["status"], t["exit"] = "emergency", px
+                        hist.append({"key": key, "status": "emergency", "r": round(realized_r(t, px), 2), "closed": now,
+                                     **{k: t.get(k) for k in LEVELS}})
+                        ga.log(f"emergency close {key} at {px} r={r:.2f}: {why}")
+                        if r < 0:
+                            try:
+                                news_agent.lesson(t, key)
+                            except Exception as e:
+                                ga.log(f"lesson failed {key}: {e}")
+                        del op[key]
+                        continue
+                    if why and t.get("warned") != why:
+                        out.append((f"⚠️ تحذير · CAUTION {f(px)}\nخبر ضد الصفقة · News against this {t['side'].upper()}:\n{why}\n"
+                                    f"الوقف {f(t['stop'])} قائم، وإذا أكد السعر نغلق فوراً · stop stays, we close at once if price confirms",
+                                    t["msg"]))
+                        t["warned"] = why
+                        op[key] = t
             if (t["status"], t["passed"]) == before:
                 # live price reply under the card (user's sample: "3531🔥💥❤️"), ONLY when the price really moved
                 # (user, 2026-11-24: "too many messages on the same pips"): at least 0.25R away from the last reply,
@@ -509,6 +574,19 @@ if __name__ == "__main__":
             exec_control.poll()
         except Exception as e:
             ga.log(f"exec_control failed: {e}")
+        try:  # once a day: the regression checks for every mistake the user caught (selfcheck.py)
+            mark = os.path.join(HERE, "cache", "selfcheck_day.txt")
+            today = time.strftime("%Y-%m-%d")
+            if not os.path.exists(mark) or open(mark).read() != today:
+                open(mark, "w").write(today)
+                import subprocess
+                r = subprocess.run([sys.executable, os.path.join(HERE, "selfcheck.py")], capture_output=True, text=True, timeout=120)
+                if r.returncode:
+                    import alpaca_exec
+                    alpaca_exec.notify_owner("⚠️ selfcheck failed, a past mistake is back:\n" + r.stdout[-800:])
+                ga.log("selfcheck: " + r.stdout.strip().splitlines()[-1][:200] if r.stdout.strip() else "selfcheck: no output")
+        except Exception as e:
+            ga.log(f"selfcheck failed to run: {e}")
         try:  # forward test: score every live bot signal (forward.py)
             import forward
             forward.update()

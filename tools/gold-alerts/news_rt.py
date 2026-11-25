@@ -34,6 +34,10 @@ RULES = [
     (r"\b(dollar|dxy|greenback|yields?)\b.{0,40}" + DOWN, +1, +0.5),
     (r"\brate cuts?\b|\bdovish\b|\beas(e|ing) (policy|rates)\b", +1, +0.5),
     (r"\brate hikes?\b|\bhawkish\b|\bhigher for longer\b|\b(more|further) tightening\b|\bmust act\b.{0,20}inflation", -1, -0.5),
+    (r"\b(back-to-back|consecutive|another|second) (rate )?hikes?\b|\b(won'?t|not) rule out\b.{0,30}\bhike", -1, -0.5),
+    (r"\b(hike|hawkish) bets? (fade|ease|cool|recede)", +2, +1),
+    (r"\betf outflows?\b", -1, 0),
+    (r"\betf inflows?\b", +1, 0),
     (r"\b(war|attack|missile|strike[sd]? on|escalat|invasion|conflict|tensions?)\b", +1, +1),
     (r"\b(ceasefire|truce|peace (deal|talks)|de-?escalat)", -1, -1),
     (r"\bsafe[- ]haven\b|\bcentral banks? (buy|add|purchas)", +1, 0),
@@ -66,9 +70,18 @@ def headlines():
     return out
 
 
+# Not market-moving: local retail price notices ("gold price in Pakistan climbs", "per gram", "tola"), miners' drill
+# results and casino spam. On 2026-11-24 these outvoted the Fed's "back-to-back hikes" headline while gold fell $27.
+NOISE = re.compile(r"\b(gold|silver) (price|prices|rate)s? (today )?in (?!the us|us\b|new york|london)[a-z]+|\bper (gram|tola|10 ?g)\b|"
+                   r"\btola\b|\bkarat\b|\bjewell?ery\b|\bg/t\b|\bdrill|\bmine\b|\bminer|\bproducer\b|\bcasino\b|\bbonus\b|"
+                   r"\bredeem code\b|\bpakistan|\bindia\b.{0,20}\bgold (rate|price)", re.I)
+
+
 def score(title):
     """{sym: score} for the assets this headline is about (missing = not about it)."""
     s, out = title.lower(), {}
+    if NOISE.search(s):
+        return out
     for sym, subj in SUBJECT.items():
         about, macro = bool(subj.search(s)), sym == "GC=F" and bool(MACRO.search(s))
         if not (about or macro):

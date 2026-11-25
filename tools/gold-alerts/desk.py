@@ -95,8 +95,8 @@ def newsroom(sym):
     + supports a buy, - against it."""
     if sym in ("GC=F", "CL=F"):
         try:
-            import news_rt
-            v, why, n = news_rt.vote(sym)
+            import news_agent  # newsroom v2: top sources, data surprises, learned weights (2026-11-24)
+            v, why, n = news_agent.vote(sym)
             if n:
                 return v, why
         except Exception as e:
@@ -114,6 +114,58 @@ def newsroom(sym):
     cache[sym] = {"t": time.time(), "v": v, "why": why}
     json.dump(cache, open(NEWS, "w"))
     return v, why
+
+
+CAL = os.path.join(HERE, "cache", "ff_calendar.json")
+
+
+def release_near(ts, before=30 * 60, after=15 * 60):
+    """A medium/high-impact US release from 30 min before to 15 min after now (live ForexFactory week calendar,
+    cached 6 h). The hardcoded regime.EVENTS list only holds the big ones; on 2026-11-24 a gold buy was posted
+    13 min before CB Consumer Confidence (10:00 ET) and stopped out."""
+    try:  # live TradingView calendar first; the ForexFactory week below is the fallback
+        import news_agent
+        hit = news_agent.release_near(ts, before, after)
+        if hit or news_agent.calendar():
+            return hit
+    except Exception as e:
+        ga.log(f"desk news_agent calendar failed: {e}")
+    cal = recom_track.load(CAL, {})
+    if time.time() - cal.get("t", 0) > 6 * 3600:
+        try:
+            cal = {"t": time.time(), "events": json.loads(ga.get("https://nfs.faireconomy.media/ff_calendar_thisweek.json", tries=2))}
+            json.dump(cal, open(CAL, "w"))
+        except Exception as e:  # rate-limited (429) easily: keep the old week, retry in 20 min
+            ga.log(f"desk calendar failed: {e}")
+            cal["t"] = time.time() - 6 * 3600 + 20 * 60
+            json.dump(cal, open(CAL, "w"))
+    for e in cal.get("events", []):
+        if e.get("country") != "USD" or e.get("impact") not in ("High", "Medium"):
+            continue
+        try:
+            et = datetime.fromisoformat(e["date"]).timestamp()
+        except Exception:
+            continue
+        if et - before <= ts <= et + after:
+            return f"{e['title']} at {datetime.fromtimestamp(et).strftime('%H:%M')}"
+    return None
+
+
+def headline_against(sym, side, window=30 * 60):
+    """A strong headline (score 2) against the side in the last 30 min, e.g. 'Fed won't rule out back-to-back
+    hikes' against a gold buy. Returns its title or None."""
+    try:
+        import news_rt
+        items = news_rt.refresh()["items"].values()
+    except Exception:
+        return None
+    sign = -1 if side == "buy" else 1
+    for h in sorted(items, key=lambda h: -h["ts"]):
+        if time.time() - h["ts"] > window:
+            break
+        if (h.get("score") or {}).get(sym, 0) * sign >= 2:
+            return h["title"][:90]
+    return None
 
 
 def risk(sym, b):
@@ -136,6 +188,9 @@ def risk(sym, b):
             lo, hi = (18 * 60, 20 * 60 + 30) if now.month == 12 and now.day == 9 else (12 * 60 + 30, 15 * 60)
             if lo <= hhmm <= hi:
                 out.append("major news release window")
+    ev = release_near(now.timestamp())
+    if ev:
+        out.append(f"US release window: {ev}")
     hist = recom_track.load(recom_track.HIST, [])[-3:]
     if len(hist) == 3 and all(h["r"] < 0 for h in hist) and now.timestamp() - hist[-1]["closed"] < 3600:
         out.append("3 losses in a row: paused for an hour")
@@ -165,6 +220,10 @@ def decide(sym):
         side = "buy"
     elif h < 0 and others <= 0.5:
         side = "sell"
+    if side and sym in ("GC=F", "CL=F"):
+        hl = headline_against(sym, side)
+        if hl:
+            veto.append(f"fresh headline against a {side}: {hl}")
     if veto:
         side = None
     size = SIZE_MOVING if votes.get("scout") else SIZE_FLAT

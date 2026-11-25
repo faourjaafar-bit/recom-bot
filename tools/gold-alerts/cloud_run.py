@@ -1,8 +1,11 @@
 """Cloud runner (GitHub Actions): the same recom bots, running while the Mac is off.
 
-One workflow run lasts about 5 minutes and is started every 5 minutes (cron), so the runs follow each other:
-  - at the start:  @@ (recom_now.py send: gold + oil calls) and the 5-min candle engine (live_recom.py run)
-  - every minute:  recom_track.watch(): fills, TP / SL replies, and the 5-min price replies
+One workflow run lasts about 50 minutes and starts the next run itself just before it ends (workflow_dispatch), so the
+bot runs around the clock. GitHub's "every 5 min" cron only fires about once an hour (2026-11-25: the close summary
+and the next plan were missed), so the cron is only the backup that restarts the chain.
+  - every 5 min:   @@ (recom_now.py send: gold + oil calls) and the 5-min candle engine (live_recom.py run)
+  - every minute:  recom_track.watch(): fills, TP / SL replies, price replies, and market_events (the closes,
+                   the close summary and the next session plan)
 State (open calls, message ids, history) lives in ../../state/*.json, copied into cache/ before each step
 and committed back after, so no call is lost or posted twice between runs.
 """
@@ -17,11 +20,12 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 STATE = os.path.join(ROOT, "state")
 CACHE = os.path.join(HERE, "cache")
 FILES = ("recom_open.json", "recom_history.json", "live_recom.json", "forward.json", "desk_log.jsonl",
-         "desk_weights.json", "desk_last.json", "exec_control_offset.json", "bybit_exec_demo.json", "bybit_terms.json")
+         "desk_weights.json", "desk_last.json", "exec_control_offset.json", "bybit_exec_demo.json", "bybit_terms.json",
+         "market_events.json")  # the alerts already sent, so a close is never posted twice
 # The phone's /kill creates this file; it lives in state/ so it survives between runs (a /kill sent while the Mac is off still holds).
 SAFE = os.path.join(ROOT, "tools", "trading-safety")
 KILL = "KILL_SWITCH"
-RUN_SECONDS = int(os.environ.get("RUN_SECONDS", "270"))
+RUN_SECONDS = int(os.environ.get("RUN_SECONDS", "3000"))
 
 
 def pull():
@@ -65,16 +69,28 @@ def step(*args):
     print((r.stdout + r.stderr)[-600:])
 
 
+def next_run():
+    """Queue the next run (it starts when this one ends: the workflow's concurrency group keeps one at a time)."""
+    if os.environ.get("CI") and os.environ.get("GH_TOKEN"):
+        r = subprocess.run(["gh", "workflow", "run", "recom.yml", "-R", os.environ.get("GITHUB_REPOSITORY", "")],
+                           capture_output=True, text=True)
+        print("next run queued" if r.returncode == 0 else "next run not queued: " + r.stderr[-300:])
+
+
 def main():
     t0 = time.time()
     pull()
-    step("recom_now.py", "send")
-    step("live_recom.py", "run")
-    push()
+    n = 0
     while time.time() - t0 < RUN_SECONDS:
+        if n % 5 == 0:
+            step("recom_now.py", "send")
+            step("live_recom.py", "run")
+            push()
+        n += 1
         time.sleep(max(0, 60 - (time.time() - t0) % 60))
         step("recom_track.py", "watch")
         push()
+    next_run()
 
 
 if __name__ == "__main__":

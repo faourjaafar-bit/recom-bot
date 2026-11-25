@@ -19,7 +19,10 @@ import recom_track
 HERE = os.path.dirname(os.path.abspath(__file__))
 SENT = os.path.join(HERE, "cache", "market_events.json")
 NY = ZoneInfo("America/New_York")
-WINDOW = 5 * 60  # an event counts for 5 minutes after it happens
+# How long after an event it may still be posted. A close (with its summary and the next plan) is caught up for 3 hours,
+# so a late cloud run or a Mac waking from sleep still sends it (2026-11-25: the whole close was missed); an open, 30 min.
+WINDOW = 30 * 60
+CLOSE_WINDOW = 3 * 3600
 
 
 def ist(dt):
@@ -60,7 +63,8 @@ def events(now):
 def check(send=True):
     now = time.time()
     sent = recom_track.load(SENT, {})
-    due = [(k, t, txt) for k, t, txt in events(now) if t <= now < t + WINDOW and k not in sent]
+    win = lambda k: CLOSE_WINDOW if "_close|" in k else WINDOW
+    due = [(k, t, txt) for k, t, txt in events(now) if t <= now < t + win(k) and k not in sent]
     if not due or not send:
         return due
     chan = ga.load_env(ga.ENV_PATH).get("TELEGRAM_RECOM_ID")
