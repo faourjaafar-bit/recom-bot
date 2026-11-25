@@ -36,14 +36,14 @@ THRESHOLD = 2.0
 # Full size when the market is moving, 0.4x when flat beat flat sizing in all 4 half-samples. Never above 1.0x:
 # the executors' max loss per trade stays the ceiling.
 SIZE_MOVING, SIZE_FLAT = 1.0, 0.4
-BASE_W = {"scout": 1.0, "hunter": 2.0, "news": 1.0, "flows": 1.0}
+BASE_W = {"hunter": 2.0}  # 2-agent desk (2026-11-25): Hunter votes, Risk vetoes
 SPOT = {"GC=F": "OANDA:XAUUSD", "CL=F": "FX:USOIL", "NVDA": "NASDAQ:NVDA"}
 NAME = {"GC=F": "GOLD", "CL=F": "OIL", "NVDA": "NVDA"}
 
 
 def weights():
     w = dict(BASE_W)
-    w.update(recom_track.load(WEIGHTS, {}))
+    w.update({k: v for k, v in recom_track.load(WEIGHTS, {}).items() if k in BASE_W})
     return w
 
 
@@ -202,31 +202,27 @@ def decide(sym):
     b = bars(sym)
     w = weights()
     votes, reasons = {}, {}
-    for name, fn in (("scout", lambda: scout(sym, b)), ("hunter", lambda: hunter(sym, b)),
-                     ("flows", lambda: flows(sym)), ("news", lambda: newsroom(sym))):
-        try:
-            votes[name], reasons[name] = fn()
-        except Exception as e:
-            votes[name], reasons[name] = 0, f"agent failed: {e}"
+    # 2 agents only (user, 2026-11-25): the HUNTER (the backtested setup) votes, the RISK skeptic can veto.
+    # Scout, Flows and Newsroom no longer vote; the scout reading is kept only for the tested trade size below.
+    try:
+        votes["hunter"], reasons["hunter"] = hunter(sym, b)
+    except Exception as e:
+        votes["hunter"], reasons["hunter"] = 0, f"agent failed: {e}"
     veto = risk(sym, b)
-    score = sum(votes[k] * w[k] for k in votes)
-    # A call needs the HUNTER (the only backtested agent: the bred 78% / scalp bot) to fire, and the other agents
-    # must not lean against it. Before this fix the scout + flows + news could post a call on their own; all 3 of
-    # those desk calls had hunter = 0, and that is where the losses came from (2026-11-23 review).
-    h = votes.get("hunter", 0)
-    others = score - h * w["hunter"]
-    side = None
-    if h > 0 and others >= -0.5:
-        side = "buy"
-    elif h < 0 and others <= 0.5:
-        side = "sell"
+    score = votes["hunter"] * w["hunter"]
+    h = votes["hunter"]
+    side = "buy" if h > 0 else "sell" if h < 0 else None
     if side and sym in ("GC=F", "CL=F"):
         hl = headline_against(sym, side)
         if hl:
             veto.append(f"fresh headline against a {side}: {hl}")
     if veto:
         side = None
-    size = SIZE_MOVING if votes.get("scout") else SIZE_FLAT
+    try:
+        moving = scout(sym, b)[0]
+    except Exception:
+        moving = 1
+    size = SIZE_MOVING if moving else SIZE_FLAT
     out = {"sym": sym, "side": side, "score": round(score, 2), "votes": votes, "reasons": reasons, "veto": veto,
            "px": b[-1]["c"], "size": size, "t": time.time()}
     try:  # the latest reading per symbol, for the terminal (terminal.py)
@@ -256,7 +252,7 @@ def review():
             continue
         win_side = r["side"] if h["r"] > 0 else ("sell" if r["side"] == "buy" else "buy")
         for k, v in r["votes"].items():
-            if v:
+            if v and k in score:
                 score[k][1] += 1
                 score[k][0] += (1 if (v > 0) == (win_side == "buy") else 0)
     w = recom_track.load(WEIGHTS, {})

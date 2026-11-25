@@ -85,7 +85,7 @@ def relay(c):
     op = recom_track.load(recom_track.OPEN, {})
     dk = desk.decide(sym)
     w = desk.weights()
-    others = sum(dk["votes"].get(k, 0) * w[k] for k in ("scout", "flows", "news"))
+    others = sum(dk["votes"].get(k, 0) * w.get(k, 0) for k in ("scout", "flows", "news"))
     hl = desk.headline_against(sym, side)
     b = desk.bars(sym)
     tr = [max(x["h"], p["c"]) - min(x["l"], p["c"]) for p, x in zip(b[-15:-1], b[-14:])]

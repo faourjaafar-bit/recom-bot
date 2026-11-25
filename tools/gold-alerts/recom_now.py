@@ -40,7 +40,7 @@ COMMOD = {"GC=F": ("GOLD", "XAUUSD", "🥇"), "CL=F": ("OIL", "USOIL", "🛢️"
 
 
 def gold_call(sym="GC=F"):
-    """Gold or oil call from the DESK (desk.py: scout, hunter, flows, newsroom, risk skeptic, lead).
+    """Gold or oil call from the DESK (desk.py: 2 agents, the Hunter votes and Risk vetoes).
     Returns None when the desk says no call (not enough agreement, or Risk vetoed)."""
     import desk
     dk = desk.decide(sym)
@@ -208,8 +208,9 @@ def market_shifted(sym, chan):
         dk = desk.decide(sym)
         px = dk["px"]
         r = recom_track.r_of(t, px)
-        # a total shift = the desk points the other way with a strong score (3+) and the call is down 0.5R or more
-        opposite = (dk["score"] <= -3 if t["side"] == "buy" else dk["score"] >= 3)
+        # a total shift = the Hunter fires the other way (2-agent desk) and the call is down 0.5R or more
+        h = dk["votes"].get("hunter", 0)
+        opposite = (h < 0 if t["side"] == "buy" else h > 0)
         if not opposite or r > -0.5:
             return False
         f = (lambda v: f"{v:.1f}") if t["gold"] else (lambda v: f"{v:.2f}")

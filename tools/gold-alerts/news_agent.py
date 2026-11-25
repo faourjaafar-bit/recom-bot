@@ -94,6 +94,17 @@ def calendar(hours_back=6, hours_fwd=36):
     return c.get("events", [])
 
 
+# Only real market movers block a call (user, 2026-11-25: "stopping all trades like an idiot"). Importance 0 items
+# (MBA mortgage rates, bill/note auctions, ethanol) vetoed every trade around them: an oil buy at 81.57 on 11-25
+# was blocked by "MBA 5/1 ARM Contract Rate". Importance 1+ or a named mover still blocks.
+MOVERS = re.compile(r"\b(cpi|pce|ppi|payrolls?|non ?farm|unemployment rate|jobless claims|gdp growth|retail sales|"
+                    r"ism|fomc|fed|powell|interest rate decision|consumer confidence|michigan|jolts|eia crude oil stocks)\b", re.I)
+
+
+def moves_market(e):
+    return e.get("importance", -1) >= 1 or bool(MOVERS.search(e.get("title", "")))
+
+
 def release_near(ts, before=30 * 60, after=15 * 60):
     """(title, time) of a medium/high US release from 30 min before to 15 min after ts, or None."""
     for e in calendar():
@@ -101,7 +112,7 @@ def release_near(ts, before=30 * 60, after=15 * 60):
             et = datetime.fromisoformat(e["date"].replace("Z", "+00:00")).timestamp()
         except Exception:
             continue
-        if et - before <= ts <= et + after and (e.get("importance", -1) >= 0):
+        if et - before <= ts <= et + after and moves_market(e):
             return f"{e['title']} at {datetime.fromtimestamp(et).strftime('%H:%M')}"
     return None
 
