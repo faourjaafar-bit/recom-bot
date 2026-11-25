@@ -185,7 +185,9 @@ def risk(sym, b):
     hhmm = now.hour * 60 + now.minute
     for d, _ in __import__("regime").EVENTS:
         if d == today:
-            lo, hi = (18 * 60, 20 * 60 + 30) if now.month == 12 and now.day == 9 else (12 * 60 + 30, 15 * 60)
+            # 30 min before to 15 min after the release (8:30 NY = 13:30 UTC; Fed on 12-09 at 19:00 UTC). It used to
+            # block 2.5 h (12:30-15:00 UTC), freezing @@ all afternoon on 11-25 ("stopping all trades like an idiot").
+            lo, hi = (18 * 60 + 30, 19 * 60 + 45) if now.month == 12 and now.day == 9 else (13 * 60, 13 * 60 + 45)
             if lo <= hhmm <= hi:
                 out.append("major news release window")
     ev = release_near(now.timestamp())
