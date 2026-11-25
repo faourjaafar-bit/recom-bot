@@ -47,7 +47,21 @@ def weights():
     return w
 
 
+# Real-time 5-minute bars (tvbars.py). Yahoo's GC=F runs ~10 min late: the hunter only saw half-formed setup bars and
+# missed all 6 gold setups on 2026-11-25; entering 10 min late also erased the gold edge. Tested on OANDA:XAUUSD bars
+# (30 Oct - 25 Nov): 95 trades +0.19R, both halves positive. Oil stays on Yahoo: on TV spot its edge was ~0R.
+TV_BARS = {"GC=F": "OANDA:XAUUSD"}
+
+
 def bars(sym):
+    if sym in TV_BARS:
+        try:
+            import tvbars
+            b = tvbars.bars(TV_BARS[sym], "5", 1500)
+            if b and time.time() - b[-1]["ts"] < 15 * 60:  # the last one is the forming candle
+                return b
+        except Exception as e:
+            ga.log(f"desk tvbars {sym} failed, using Yahoo: {e}")
     return [x for x in zp.yahoo_bars(sym, "5d", "5m") if x["v"] is not None]
 
 
