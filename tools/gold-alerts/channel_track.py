@@ -22,7 +22,9 @@ FILE = os.path.join(HERE, "cache", "channels", "trial_mmsignalsfx.json")
 NAME, GOAL, GATE = "mmsignalsfx", 30, 0.05
 # every channel on a live 30-call trial -> its display name. Only NAME is relayed to java_recomm (through relay());
 # the others are scored only (user, 2026-11-25: "add to trial" for XAUUSD_Signals, backtest +0.08R over 39 calls)
-TRIALS = {"mmsignalsfx": "Market Makers", "XAUUSD_Signals": "XAUUSD_Signals"}
+# Mahmoud Gold FX is the PRIORITY channel (user, 2026-11-26: "close follow up on him ... keep it priority"): checked first,
+# scored only (nothing of his goes to java_recomm), every call and result goes to the owner's bot chat.
+TRIALS = {"MahmoudGoldFX": "Mahmoud Gold FX", "mmsignalsfx": "Market Makers", "XAUUSD_Signals": "XAUUSD_Signals"}
 
 
 def trial_file(name):
@@ -165,6 +167,9 @@ def check(name=NAME):
             continue
         st["last_id"] = m["id"]
         c = ce.parse(name, m["text"])
+        if c and any(o["side"] == c["side"] and o["entry"] == c["entry"] and o["stop"] == c["stop"]
+                     and m["ts"] - o["ts"] < 24 * 3600 for o in st["calls"]):
+            c = None  # the same order posted again as a reminder (Mahmoud does this): not a new call
         if c:
             c.update(id=m["id"], ts=m["ts"], status="new")
             st["calls"].append(c)

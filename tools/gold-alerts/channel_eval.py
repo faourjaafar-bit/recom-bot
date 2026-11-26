@@ -88,6 +88,16 @@ def parse(name, text):
         if not (m and sl and tps) or re.search(r"\b(booked|running|update|hit)\b", s, re.I):
             return None
         c.update(side=m.group(1).lower(), entry=num(m.group(2)), stop=num(sl.group(1)), **{f"t{i + 1}": v for i, v in enumerate(tps[:3])})
+    elif name == "MahmoudGoldFX":  # "GOLD BUY LIMIT / Buy 3563 / Tp 3568 (x5) / Sl 3550" (also on one line, also "NOW")
+        m = re.search(r"GOLD\s+(BUY|SELL)(?:\s+(LIMIT|STOP|NOW))?[^0-9]{0,30}" + NUM, s, re.I)
+        sl = re.search(r"\bSL\W*" + NUM, s, re.I)
+        tps = [num(x) for x in re.findall(r"\bTP\s*\d?\W*" + NUM, s, re.I)]
+        if not (m and sl and tps):
+            return None
+        # he posts 5 targets: the first, the middle one and the last cover his whole plan in our 3-target scoring
+        pick = tps if len(tps) <= 3 else [tps[0], tps[len(tps) // 2], tps[-1]]
+        c.update(side=m.group(1).lower(), entry=num(m.group(3)), stop=num(sl.group(1)), order=(m.group(2) or "now").lower(),
+                 tps=tps, **{f"t{i + 1}": v for i, v in enumerate(pick)})
     elif name == "signalsproviderfx":
         if re.search(r"VIP|SALE|win rate", s) and not re.search(r"#freesignal|#gold|#xauusd", s, re.I):
             return None

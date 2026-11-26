@@ -23,7 +23,8 @@ FILES = ("recom_open.json", "recom_history.json", "live_recom.json", "forward.js
          "desk_weights.json", "desk_last.json", "exec_control_offset.json", "bybit_exec_demo.json", "bybit_terms.json",
          "market_events.json", "hunter_seen.json",  # the alerts already sent, so a close is never posted twice
          # trusted-channel trials + backtest table (checked every minute by recom_track watch, 2026-11-25)
-         "channels/trial_mmsignalsfx.json", "channels/trial_xauusd_signals.json", "channels/table.json")
+         "channels/trial_mmsignalsfx.json", "channels/trial_xauusd_signals.json", "channels/table.json",
+         "channels/trial_mahmoudgoldfx.json")  # the priority channel (2026-11-26)
 # The phone's /kill creates this file; it lives in state/ so it survives between runs (a /kill sent while the Mac is off still holds).
 SAFE = os.path.join(ROOT, "tools", "trading-safety")
 KILL = "KILL_SWITCH"
