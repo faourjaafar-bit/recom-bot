@@ -27,3 +27,4 @@
 {"key": "GOLDMM|3558.5|11261059", "side": "sell", "votes": {"hunter": 0, "scout": -0.5, "flows": 0.5, "news": -1}, "t": 1795690798.7175994}
 {"key": "GOLDMM|3568.0|11261137", "side": "sell", "votes": {"hunter": 0, "scout": 1.0, "flows": 0.5, "news": -1}, "t": 1795693048.1051302}
 {"key": "GOLDMM|3573.5|11261242", "side": "sell", "votes": {"hunter": 0, "scout": 1.0, "flows": 0.5, "news": -1}, "t": 1795696968.7944446}
+{"key": "OILNOW|84.64|11261505", "side": "buy", "votes": {"hunter": 1, "scout": 1.0, "flows": 0.0, "news": 1}, "t": 1795705506.8342288}
