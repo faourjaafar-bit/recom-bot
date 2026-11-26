@@ -37,6 +37,10 @@ THRESHOLD = 2.0
 # the executors' max loss per trade stays the ceiling.
 SIZE_MOVING, SIZE_FLAT = 1.0, 0.4
 BASE_W = {"hunter": 2.0}  # 2-agent desk (2026-11-25): Hunter votes, Risk vetoes
+# 4 advisers re-hired (user, 2026-11-26: "hire the 4 agents ... but not block the trading flow"): Scout, Flows and
+# Newsroom read every setup and the Lead sums them up. They never open, block or resize a call; the Reviewer grades
+# them on closed calls, so an adviser can earn a vote later with numbers behind it.
+ADVISERS = ("scout", "flows", "news")
 SPOT = {"GC=F": "OANDA:XAUUSD", "CL=F": "FX:USOIL", "NVDA": "NASDAQ:NVDA"}
 NAME = {"GC=F": "GOLD", "CL=F": "OIL", "NVDA": "NVDA"}
 
@@ -234,6 +238,22 @@ def risk(sym, b):
     return out
 
 
+def advise_news(sym):
+    """The Newsroom as an adviser: the realtime headline vote only (no slow LLM fallback on the trading path)."""
+    import news_agent
+    v, why, n = news_agent.vote(sym)
+    return (v, why) if n else (0, "no fresh headline about it")
+
+
+def lead(h, votes):
+    """The Lead's one-line summary of the advisers against the Hunter's setup. Information only."""
+    d = h or (1 if sum(votes.get(k, 0) for k in ADVISERS) > 0 else -1)
+    w = [k for k in ADVISERS if votes.get(k, 0) * d > 0]
+    a = [k for k in ADVISERS if votes.get(k, 0) * d < 0]
+    what = f"Hunter {'BUY' if h > 0 else 'SELL'}" if h else f"no setup; advisers lean {'up' if d > 0 else 'down'}"
+    return f"{what}: {len(w)} with ({', '.join(w) or '-'}), {len(a)} against ({', '.join(a) or '-'})"
+
+
 def decide(sym):
     """The lead: {"side", "score", "votes", "reasons", "veto", "px"}; side None = no call."""
     b = bars(sym)
@@ -255,12 +275,15 @@ def decide(sym):
             veto.append(f"fresh headline against a {side}: {hl}")
     if veto:
         side = None
-    try:
-        moving = scout(sym, b)[0]
-    except Exception:
-        moving = 1
+    for k, f in (("scout", lambda: scout(sym, b)), ("flows", lambda: flows(sym)), ("news", lambda: advise_news(sym))):
+        try:
+            votes[k], reasons[k] = f()
+        except Exception as e:
+            votes[k], reasons[k] = 0, f"agent failed: {e}"
+    moving = votes["scout"] if "failed" not in reasons["scout"] else 1
     size = SIZE_MOVING if moving else SIZE_FLAT
     out = {"sym": sym, "side": side, "score": round(score, 2), "votes": votes, "reasons": reasons, "veto": veto,
+           "lead": lead(h, votes),
            "bar_ts": _fired.get(sym),
            "px": b[-1]["c"], "size": size, "t": time.time()}
     try:  # the latest reading per symbol, for the terminal (terminal.py)
@@ -283,7 +306,7 @@ def review():
     weight within 0.5-2x of the base once it has 20+ graded calls. Small steps, so it cannot over-fit quickly."""
     hist = {h["key"]: h for h in recom_track.load(recom_track.HIST, [])}
     rows = [json.loads(x) for x in open(LOG)] if os.path.exists(LOG) else []
-    score = {k: [0, 0] for k in BASE_W}
+    score = {k: [0, 0] for k in tuple(BASE_W) + ADVISERS}  # advisers are graded too, only BASE_W gets a weight
     for r in rows:
         h = hist.get(r["key"])
         if not h or h["status"] == "shifted":
@@ -295,7 +318,7 @@ def review():
                 score[k][0] += (1 if (v > 0) == (win_side == "buy") else 0)
     w = recom_track.load(WEIGHTS, {})
     for k, (ok, n) in score.items():
-        if n >= 20:
+        if n >= 20 and k in BASE_W:
             rate = ok / n
             w[k] = round(min(2.0, max(0.5, BASE_W[k] * (0.5 + rate))), 2)
     json.dump(w, open(WEIGHTS, "w"))
@@ -311,5 +334,6 @@ if __name__ == "__main__":
             d = decide(sym)
             print(f"\n=== {NAME[sym]} @ {d['px']:.2f}  → {d['side'] or 'NO CALL'}  (score {d['score']}, need ±{THRESHOLD})")
             for k in d["votes"]:
-                print(f"  {k:7s} {d['votes'][k]:+.1f} × {weights()[k]}  {d['reasons'][k]}")
+                print(f"  {k:7s} {d['votes'][k]:+.1f} × {weights().get(k, 'adviser')}  {d['reasons'][k]}")
+            print("  lead   ", d["lead"])
             print("  risk   ", d["veto"] or "no veto")
