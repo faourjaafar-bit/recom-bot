@@ -39,8 +39,19 @@
    "ts": 1795693010.0,
    "status": "new",
    "relayed": true
+  },
+  {
+   "side": "sell",
+   "entry": 3573.5,
+   "stop": 3581.0,
+   "t1": 3567.0,
+   "t2": 35451.0,
+   "id": 33229,
+   "ts": 1795696904.0,
+   "status": "new",
+   "relayed": true
   }
  ],
- "last_id": 33228,
+ "last_id": 33229,
  "verdict": null
 }
