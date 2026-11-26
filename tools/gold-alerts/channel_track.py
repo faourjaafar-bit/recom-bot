@@ -101,6 +101,19 @@ def relay(c):
     ]
     score = sum(ok for ok, _ in checks)
     lines = "\n".join(("✅ " if ok else "❌ ") + lab for ok, lab in checks)
+    # SECOND OPINION, required on top of the 7 (user, 2026-11-26, after 2 of 3 relays lost with the 7 checks passed:
+    # "other recom scouts for the same idea, recom just on market makers case"). The 7 checks never ask whether the
+    # direction is right: both losing SELLs had the scout + flows leaning UP and still passed 4/7.
+    sc = dk["votes"].get("scout", 0) * d
+    if sc < 0:
+        hard.append(f"the scout's trend is against the {side}")
+    who = confirm(side, c["ts"])
+    if dk["votes"].get("hunter", 0) * d > 0:
+        who.append("our tested gold bot")
+    if not who:
+        hard.append("no second source on the same side (other channels, our tested bot)")
+    else:
+        lines += "\n✅ same idea from: " + ", ".join(who)
     if hard or score < NEED:
         notify(f"📡 Market Makers {side.upper()} @{c['entry']:.1f} NOT posted: {score}/7"
                + (" · cannot be traded: " + ", ".join(hard) if hard else f" (needs {NEED})") + "\n" + lines)
@@ -124,6 +137,18 @@ def relay(c):
         notify(f"📡 Market Makers {side.upper()} @{plan['entry']} POSTED: {score}/7\n" + lines)
         ga.log(f"relay posted {key} ok={ok}")
     return ok
+
+
+def confirm(side, ts, hours=3):
+    """Names of the OTHER tracked channels that posted a gold call on the same side within `hours` of ts."""
+    out = []
+    for name, label in TRIALS.items():
+        if name == NAME:
+            continue
+        calls = recom_track.load(trial_file(name), {}).get("calls", [])
+        if any(x.get("side") == side and abs(x.get("ts", 0) - ts) <= hours * 3600 for x in calls):
+            out.append(label)
+    return out
 
 
 def zp_bars(sym):
