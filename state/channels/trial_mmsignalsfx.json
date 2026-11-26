@@ -9,10 +9,10 @@
    "t2": 3451.0,
    "id": 33199,
    "ts": 1795619118.0,
-   "status": "loss",
+   "status": "win",
    "relayed": true,
-   "passed": 0,
-   "r": -1.0,
+   "passed": 3,
+   "r": 1.71,
    "pips": -125
   },
   {
@@ -58,6 +58,6 @@
    "pips": 65
   }
  ],
- "last_id": 33236,
+ "last_id": 33237,
  "verdict": null
 }
