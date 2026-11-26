@@ -178,7 +178,11 @@ def run(post=True):
     chan = ga.load_env(ga.ENV_PATH).get("TELEGRAM_RECOM_ID")
     now = datetime.now(timezone.utc).timestamp()
     for sym, (tag, name, icon, _) in SYMS.items():
-        b = [x for x in zp.yahoo_bars(sym, "5d", "5m") if x["v"] is not None]
+        if sym == "CL=F":  # oil reads the desk's real-time bars (2026-11-26); gold and NVDA are unchanged here
+            import desk
+            b = desk.bars(sym)
+        else:
+            b = [x for x in zp.yahoo_bars(sym, "5d", "5m") if x["v"] is not None]
         if len(b) < 212 or now - b[-1]["ts"] > 15 * 60:
             print(sym, "market closed or no data")
             continue

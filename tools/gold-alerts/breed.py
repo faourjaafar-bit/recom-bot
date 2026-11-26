@@ -63,20 +63,68 @@ def trig_at(name, b, P, i):
     if name == "ema_cross":
         e0, e1 = c[i - 1] - P["e20"][i - 1], c[i] - P["e20"][i]
         return 1 if e0 <= 0 < e1 else -1 if e0 >= 0 > e1 else 0
+    if name == "level_reject":
+        return level_reject(b, P, i)
+    if name == "level_break":
+        return level_break(b, P, i)
     d3 = [b[j]["c"] - b[j]["o"] for j in (i - 2, i - 1, i)]  # momentum3
     if not b[i]["v"] > b[i - 1]["v"] > b[i - 2]["v"]:
         return 0
     return 1 if all(d > 0 for d in d3) else -1 if all(d < 0 for d in d3) else 0
 
 
+def level_reject(b, P, i, n=3, look=60):
+    """Chart-reading scalp (Day Trading Addict video, 2026-11-26): direction = the last two swing highs AND lows both
+    rising (falling); the bar comes back to the last swing low (high) and closes beyond it with a reaction: a
+    rejection tail or a solid bar closing at its high (low). A swing counts only n bars after it formed."""
+    hs, ls = [], []
+    for k in range(i - n, max(i - look, n) - 1, -1):  # newest first
+        w = b[k - n:k + n + 1]
+        if len(hs) < 2 and b[k]["h"] == max(y["h"] for y in w):
+            hs.append(b[k]["h"])
+        if len(ls) < 2 and b[k]["l"] == min(y["l"] for y in w):
+            ls.append(b[k]["l"])
+        if len(hs) == 2 and len(ls) == 2:
+            break
+    if len(hs) < 2 or len(ls) < 2:
+        return 0
+    x, a = b[i], P["atr"][i]
+    body, rng = abs(x["c"] - x["o"]), x["h"] - x["l"]
+    if rng < 0.8 * a:
+        return 0
+    top, bot = max(x["o"], x["c"]), min(x["o"], x["c"])
+    if hs[0] > hs[1] and ls[0] > ls[1] and x["l"] <= ls[0] + 0.25 * a and x["c"] >= ls[0]:
+        tail = bot - x["l"] >= 2 * body and x["c"] >= x["l"] + 0.5 * rng
+        solid = x["c"] > x["o"] and body >= 0.6 * rng and x["h"] - x["c"] <= 0.25 * rng
+        return 1 if tail or solid else 0
+    if hs[0] < hs[1] and ls[0] < ls[1] and x["h"] >= hs[0] - 0.25 * a and x["c"] <= hs[0]:
+        tail = x["h"] - top >= 2 * body and x["c"] <= x["l"] + 0.5 * rng
+        solid = x["c"] < x["o"] and body >= 0.6 * rng and x["c"] - x["l"] <= 0.25 * rng
+        return -1 if tail or solid else 0
+    return 0
+
+
+def level_break(b, P, i, zone=36, touches=3):
+    """Chart-reading break (Raja Banks video, 2026-11-26): a thin level where candle BODIES stopped over the last
+    3 hours, touched by 3+ bars, then the first candle CLOSE beyond it."""
+    z, a, c = b[i - zone:i], P["atr"][i], P["c"]
+    res, sup = max(max(y["o"], y["c"]) for y in z), min(min(y["o"], y["c"]) for y in z)
+    if c[i] > res >= c[i - 1] and sum(y["h"] >= res - 0.1 * a for y in z) >= touches:
+        return 1
+    if c[i] < sup <= c[i - 1] and sum(y["l"] <= sup + 0.1 * a for y in z) >= touches:
+        return -1
+    return 0
+
+
 NAMES = ("pullback", "brk12", "brk24", "rsi_rev", "ema_cross", "momentum3")
+CHART = ("level_reject", "level_break")  # bred apart from NAMES (chart_breed.py), so the old results stay comparable
 
 
-def triggers(b, P):
+def triggers(b, P, names=NAMES):
     """Every trigger as a list: +1 buy, -1 sell, 0 nothing, for each bar (before any filter)."""
-    out = {k: [0] * len(b) for k in NAMES}
+    out = {k: [0] * len(b) for k in names}
     for i in range(210, len(b)):
-        for k in NAMES:
+        for k in names:
             out[k][i] = trig_at(k, b, P, i)
     return out
 
@@ -99,9 +147,16 @@ def triggers(b, P):
 LIVE = {"GC=F": [("ema_cross", "with", "asia", ("pips", 120), 0.33, 24, "news_off"),
                  ("brk12", "against", "ldn", ("atr", 3.0), 0.25, 48, "skip_news"),
                  ("ema_cross", "against", "ny", ("pips", 120), 0.33, 48, "skip_news")],
-        "CL=F": [("rsi_rev", "against", "asia", ("pips", 80), 1.5, 48),
-                 ("pullback", "none", "ldn", ("atr", 3.0), 0.33, 12, "skip_news"),
-                 ("momentum3", "against", "ny", ("pips", 50), 3.0, 48)],
+        # oil re-bred 2026-11-26 (rebreed.py: tuned on 6 older months, then profitable on the last 60 days on two feeds;
+        # oil_feed_test.py: also positive on real-time FX:USOIL bars, where the three bots before them were about flat
+        # and lost when entered 10 minutes late on Yahoo). avg R per trade, tuning / unseen Bybit / unseen Yahoo:
+        # oil asia: reaction at a swing level, 30 pips, 3R   +0.09 / +0.25 / +0.13
+        # oil ldn : pullback, 80 pips, 2R                    +0.11 / +0.13 / +0.15
+        # oil ny  : reaction at a swing level, 50 pips, 3R   +0.22 / +0.20 / +0.24
+        # before: rsi_rev against asia 80 pips 1.5R; pullback ldn 3 ATR 0.33R skip_news; momentum3 against ny 50 pips 3R
+        "CL=F": [("level_reject", "none", "asia", ("pips", 30), 3.0, 48),
+                 ("pullback", "none", "ldn", ("pips", 80), 2.0, 48),
+                 ("level_reject", "none", "ny", ("pips", 50), 3.0, 48)],
         "NVDA": [("ema_cross", "with", "ny", ("atr", 2.0), 0.5, 48, "skip_news")]}
 
 
@@ -124,12 +179,13 @@ def risk_of(sym, b):
 
 
 def plan(sym, side, entry, risk, gene=None):
-    """Card levels for the live bot. A 3R scalp bot: TP 1R / 2R / 3R, a win at TP3. A high-win bot: TP1 is its
-    tested exit (rr x R) and the call is a win there; TP2 / TP3 = 2x / 3x that distance for anyone who holds on."""
+    """Card levels for the live bot. A scalp bot (target 1R or more): TP3 is its tested exit and TP1 / TP2 sit at one
+    and two thirds of the way (3R bot: 1R / 2R / 3R; 2R bot: 0.67R / 1.33R / 2R), a win at TP3. A high-win bot: TP1 is
+    its tested exit (rr x R) and the call is a win there; TP2 / TP3 = 2x / 3x that distance for anyone who holds on."""
     gene = gene or active_gene(sym) or LIVE[sym][0]
     rr = gene[4]
     d = 1 if side == "buy" else -1
-    step = rr * risk if rr < 1 else risk
+    step = rr * risk if rr < 1 else rr * risk / 3
     import time as _t
     import recom_track
     now = _t.time()
@@ -187,18 +243,18 @@ def in_session(sess, hour):
     return r is None or hour in r
 
 
-def genes_highwin(sym):
+def genes_highwin(sym, trigs=NAMES):
     """For a 78%+ win rate: small targets (0.25-0.75R) against wider stops, with and without the news filter."""
     stops = [("atr", m) for m in (1.0, 1.5, 2.0, 3.0)] + ([("pips", p) for p in (50, 80, 120)] if sym in PIP else [])
     return list(itertools.product(
-        ["pullback", "brk12", "brk24", "rsi_rev", "ema_cross", "momentum3"], ["none", "with", "against"],
+        list(trigs), ["none", "with", "against"],
         ["all", "ldn_ny", "ny", "asia", "ldn"], stops, [0.25, 0.33, 0.5, 0.75], [12, 24, 48], ["news_off", "skip_news"]))
 
 
-def genes(sym):
+def genes(sym, trigs=NAMES):
     stops = [("atr", m) for m in (0.75, 1.0, 1.5, 2.0)] + ([("pips", p) for p in (30, 50, 80)] if sym in PIP else [])
     return list(itertools.product(
-        ["pullback", "brk12", "brk24", "rsi_rev", "ema_cross", "momentum3"],  # entry trigger
+        list(trigs),  # entry trigger
         ["none", "with", "against"],  # trend filter (EMA50 vs EMA200); "against" = fade the trigger
         ["all", "ldn_ny", "ny", "asia", "ldn"],  # session (UTC: 7-17 / 13-20 / 23-7 / 7-13)
         stops,  # stop distance
@@ -269,11 +325,11 @@ def monte_carlo(rs, runs=1000):
     return {"dd95": round(dds[int(0.95 * runs)], 1), "p_loss": round(100 * losing / runs)}
 
 
-def breed(sym, highwin=False, min_win=78, sessions=None):
-    b = [x for x in zp.yahoo_bars(sym, "60d", "5m") if x["v"] is not None]
+def breed(sym, highwin=False, min_win=78, sessions=None, trigs=NAMES, b=None):
+    b = b or [x for x in zp.yahoo_bars(sym, "60d", "5m") if x["v"] is not None]
     P, cut = prep(b), int(len(b) * SPLIT)
-    T = triggers(b, P)
-    G = genes_highwin(sym) if highwin else genes(sym)
+    T = triggers(b, P, trigs)
+    G = genes_highwin(sym, trigs) if highwin else genes(sym, trigs)
     if sessions:
         G = [g for g in G if g[2] in sessions]
     ins = []
