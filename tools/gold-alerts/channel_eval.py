@@ -110,6 +110,13 @@ def parse(name, text):
     d = 1 if c["side"] == "buy" else -1
     if not (c["entry"] - c["stop"]) * d > 0 or not (c["t1"] - c["entry"]) * d > 0 or not 1000 < c["entry"] < 10000:
         return None
+    # a typo'd level (Market Makers' TP2 "35451" on 2026-11-26 booked -2832R) is dropped; relay() rebuilds it from the risk
+    risk = abs(c["entry"] - c["stop"])
+    if (c["t1"] - c["entry"]) * d > 15 * risk:
+        return None
+    for k in ("t2", "t3"):
+        if k in c and not 0 < (c[k] - c["entry"]) * d <= 15 * risk:
+            del c[k]
     return c
 
 

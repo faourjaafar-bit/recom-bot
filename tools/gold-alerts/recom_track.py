@@ -171,6 +171,14 @@ def apply_patch():
         for h in hist:
             h.update(pt.get("set", {}).get(h.get("key"), {}))
         json.dump(hist, open(HIST, "w"), indent=1)
+        for name, fix in pt.get("trial", {}).items():  # channel-trial calls: {name: {message id: fields}}
+            import channel_track
+            tf = channel_track.trial_file(name)
+            if os.path.exists(tf):
+                tr = load(tf, {})
+                for c in tr.get("calls", []):
+                    c.update(fix.get(str(c.get("id")), {}))
+                json.dump(tr, open(tf, "w"), indent=1)
         if pt.get("cancel"):  # orders cancelled by hand: stop following them, no result
             with lock():
                 op = load(OPEN, {})
