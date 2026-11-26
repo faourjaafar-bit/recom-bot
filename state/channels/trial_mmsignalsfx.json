@@ -23,8 +23,11 @@
    "t2": 3536.0,
    "id": 33215,
    "ts": 1795690731.0,
-   "status": "new",
-   "relayed": true
+   "status": "loss",
+   "relayed": true,
+   "passed": 0,
+   "r": -1.0,
+   "pips": -75
   }
  ],
  "last_id": 33218,
