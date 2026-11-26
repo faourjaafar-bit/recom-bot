@@ -28,8 +28,19 @@
    "passed": 0,
    "r": -1.0,
    "pips": -75
+  },
+  {
+   "side": "sell",
+   "entry": 3568.0,
+   "stop": 3575.5,
+   "t1": 3561.5,
+   "t2": 3545.5,
+   "id": 33221,
+   "ts": 1795693010.0,
+   "status": "new",
+   "relayed": true
   }
  ],
- "last_id": 33219,
+ "last_id": 33221,
  "verdict": null
 }
