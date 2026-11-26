@@ -37,8 +37,11 @@
    "t2": 3545.5,
    "id": 33221,
    "ts": 1795693010.0,
-   "status": "new",
-   "relayed": true
+   "status": "loss",
+   "relayed": true,
+   "passed": 0,
+   "r": -1.0,
+   "pips": -75
   },
   {
    "side": "sell",
@@ -48,8 +51,11 @@
    "t2": 35451.0,
    "id": 33229,
    "ts": 1795696904.0,
-   "status": "new",
-   "relayed": true
+   "status": "win",
+   "relayed": true,
+   "passed": 2,
+   "r": -2124.73,
+   "pips": -318775
   }
  ],
  "last_id": 33233,
