@@ -24,7 +24,8 @@ FILES = ("recom_open.json", "recom_history.json", "live_recom.json", "forward.js
          "market_events.json", "hunter_seen.json",  # the alerts already sent, so a close is never posted twice
          # trusted-channel trials + backtest table (checked every minute by recom_track watch, 2026-11-25)
          "channels/trial_mmsignalsfx.json", "channels/trial_xauusd_signals.json", "channels/table.json",
-         "channels/trial_mahmoudgoldfx.json", "patch_said.json")  # the priority channel (2026-11-26)
+         "channels/trial_mahmoudgoldfx.json", "patch_said.json",
+         "nyopen_paper.json")  # NY-open rule paper test, owner only (2026-11-27)  # the priority channel (2026-11-26)
 # The phone's /kill creates this file; it lives in state/ so it survives between runs (a /kill sent while the Mac is off still holds).
 SAFE = os.path.join(ROOT, "tools", "trading-safety")
 KILL = "KILL_SWITCH"
@@ -90,6 +91,7 @@ def main():
         if n % 5 == 0:
             step("recom_now.py", "send")
             step("live_recom.py", "run")
+            step("nyopen_paper.py", "run")
             push()
         n += 1
         time.sleep(max(0, 60 - (time.time() - t0) % 60))
