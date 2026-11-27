@@ -205,11 +205,16 @@ def past_close(t, bars):
 
 
 def step(t, bars, margin=1800):
-    """Walk the bars since the post and update the trade. Same bar touching stop and target = stop."""
+    """Walk the bars since the post and update the trade. Same bar touching stop and target = stop.
+    Each closed bar is walked ONCE (t["done_ts"]): re-walking the bars from before TP1 with the stop already moved to
+    the entry booked fake breakeven exits (2026-11-27: a BUY 3640.77 that hit TP1, TP2 and TP3 was booked +0.11R)."""
     d = 1 if t["side"] == "buy" else -1
+    last = bars[-1]["ts"] if bars else 0
     for x in bars:
-        if x["ts"] < t["posted"] - margin:
+        if x["ts"] < t["posted"] - margin or x["ts"] <= t.get("done_ts", 0):
             continue
+        if x["ts"] < last:  # closed bar: never walk it again (the forming last bar is re-read next minute)
+            t["done_ts"] = x["ts"]
         if t["status"] == "pending":
             if x["ts"] > t["valid"]:
                 t["status"] = "expired"

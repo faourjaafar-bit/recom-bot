@@ -42,6 +42,14 @@ def check():
     t = trade()
     rt.step(t, bars([3615, 3628]))
     ok(t["status"] == "loss", "1: stop before any target must be a loss")
+    # 1b. the watcher calls step() every minute on the growing bar list: a bar from BEFORE TP1 that dipped below the
+    # entry must not be re-read as a breakeven exit once the stop sits at the entry (2026-11-27: BUY 3640.77)
+    t = trade("buy", 3640.8)
+    seq = [3640.0, 3640.8, 3645.0]
+    rt.step(t, bars(seq))
+    rt.step(t, bars(seq + [3646.0]))
+    rt.step(t, bars(seq + [3646.0, 3649.0]))
+    ok(t["status"] == "open" and t["passed"] == 2, "1: re-walked pre-TP1 bar booked a fake breakeven exit")
     # 3. noise headlines never count
     import news_rt
     ok(news_rt.score("Gold prices in Pakistan climb for a second consecutive day") == {}, "3: local price noise scored")
