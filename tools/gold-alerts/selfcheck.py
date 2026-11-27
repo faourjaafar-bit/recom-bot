@@ -40,6 +40,13 @@ def check():
     t = trade()
     rt.step(t, bars([3615, 3611.5, 3616]))
     ok(t["status"] == "open", "1: gold must NOT exit at entry after TP1 (hold to TP3, stop unchanged)")
+    ok(not any("Congrats" in m or "مبروك" in m for m in rt.short(dict(trade(), passed=1), ("open", 0))),
+       "16: no Congrats at TP1 while the full stop is still live (hold): a stop-loss message can follow it")
+    ok(any("Congrats" in m for m in rt.short(dict(trade(), passed=3, status="win", exit=3603.6), ("open", 2))),
+       "16: the last target must still say Congrats")
+    t = dict(trade(), manage="be")  # posted under stop-to-entry: a later rule change must not touch it
+    rt.step(t, bars([3615, 3611.5, 3616]))
+    ok(t["status"] == "win" and t.get("be"), "16: an open call must keep the rule it was posted with")
     t = trade()
     t["kind"] = "relay"
     rt.step(t, bars([3615, 3611.5, 3616]))

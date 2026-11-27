@@ -1,5 +1,5 @@
 {
- "note": "2026-11-25 corrections: GOLDMM sell never hit its stop on spot (high 3472.4) and reached TP3 3438.5; the two NVDA sells used yesterday's 155.38 close as entry (real price ~142) and are void | 2026-11-26: Market Makers SELL 3573.5 was parsed with TP2 '35451' (their typo) and booked -2832.93R; on TradingView spot it hit TP1 3567.0 at 13:02 UTC, then came back to the entry at 13:59 = a win after TP1, +0.29R. TP2/TP3 set to their usual -22.5/-30 pattern (3551.0/3543.5)",
+ "note": "2026-11-25 corrections: GOLDMM sell never hit its stop on spot (high 3472.4) and reached TP3 3438.5; the two NVDA sells used yesterday's 155.38 close as entry (real price ~142) and are void | 2026-11-26: Market Makers SELL 3573.5 was parsed with TP2 '35451' (their typo) and booked -2832.93R; on TradingView spot it hit TP1 3567.0 at 13:02 UTC, then came back to the entry at 13:59 = a win after TP1, +0.29R. TP2/TP3 set to their usual -22.5/-30 pattern (3551.0/3543.5) | 2026-11-27: GOLD BUY 3635.34 (14:46 UTC) hit TP1 at 14:50 and the channel said 'stop moved to entry: no loss now'; the gold rule then changed to hold while it was open, TP1 was posted again and it was booked 'SL -80 pips'. Price was back under the entry at 15:07 = out at entry after TP1 as announced, +0.22R (a third at TP1)",
  "set": {
   "GOLDMM|3473.5|11251507": {
    "status": "win",
@@ -36,6 +36,14 @@
    "exit": 3652.65,
    "r": 0.66,
    "be": false
+  },
+  "GOLDNOW|3635.34|11271446": {
+   "status": "win",
+   "passed": 1,
+   "exit": 3635.34,
+   "be": true,
+   "manage": "be",
+   "r": 0.22
   }
  },
  "drop": [

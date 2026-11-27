@@ -132,6 +132,7 @@ def add(sig):
                       "hold": sig.get("hold"), "kind": sig.get("kind", "tested"), "size": sig.get("size", 1.0),
                       "msg": sig.get("msg"), "win_at": sig.get("win_at") or sig["plan"].get("win_at", 3),
                       "close_by": sig["plan"].get("close_by")}  # Telegram id of the card: results are sent as replies to it
+    op[sig["key"]]["manage"] = manage(op[sig["key"]])  # fixed for the life of the call
     json.dump(op, open(OPEN, "w"), indent=1)
 
 
@@ -179,6 +180,13 @@ def apply_patch():
                 for c in tr.get("calls", []):
                     c.update(fix.get(str(c.get("id")), {}))
                 json.dump(tr, open(tf, "w"), indent=1)
+        said_p = os.path.join(HERE, "cache", "patch_said.json")  # one-off channel notes (corrections), each sent once
+        said = load(said_p, [])
+        for s in pt.get("say", []):
+            if s["id"] not in said:
+                post(ga.load_env(ga.ENV_PATH).get("TELEGRAM_RECOM_ID"), s["text"], s.get("reply"))
+                said.append(s["id"])
+                json.dump(said, open(said_p, "w"))
         if pt.get("cancel"):  # orders cancelled by hand: stop following them, no result
             with lock():
                 op = load(OPEN, {})
@@ -214,6 +222,11 @@ MANAGE = {"GC=F": "hold", "CL=F": "lock"}
 
 
 def manage(t):
+    # A call keeps the rule it was POSTED with (t["manage"], set in add()). On 2026-11-27 the gold rule changed from
+    # stop-to-entry to hold while BUY 3635.3 was open: the channel had said "stop moved to entry: no loss now", then got
+    # TP1 a second time and "SL -80 pips" (user: "why did you write stop loss after congrats, are you stupid?").
+    if t.get("manage") in ("hold", "lock", "be"):
+        return t["manage"]
     return "be" if t.get("kind") == "relay" else MANAGE.get(t.get("sym"), "be")
 
 
@@ -537,16 +550,22 @@ def short(t, before):
         out.append("⌛ أُلغيت، لم يُنفَّذ / cancelled, not filled")
     for i in range(before[1] + 1, min(t["passed"], 3) + 1):
         p = t[f"t{i}"]
-        line = f"TP{SUP[i]} {f(p)}🔥💥❤️ {move(t, 'en', p).split(' (')[0]}\n"
+        m = manage(t)
+        # "Congrats" only once the call can no longer lose (user, 2026-11-27): the last target, a stop already at the
+        # entry, or profit locked at TP1. A target passed while the full stop is still live gets a plain note.
+        safe = i == 3 or m == "be" or (m == "lock" and i == 2)
+        line = f"TP{SUP[i]} {f(p)}{'🔥💥❤️' if safe else ' ✅'} {move(t, 'en', p).split(' (')[0]}\n"
         if i == 3:
             line += "🏆🥳 مبروك Congrats! الأهداف الثلاثة تحققت · all 3 targets hit, صفقة ناجحة"
         else:
-            line += f"👏🎉 مبروك Congrats! ➡️ الهدف التالي · next TP{SUP[i + 1]} {f(t[f't{i + 1}'])}"
-            m = manage(t)
+            line += ("👏🎉 مبروك Congrats! " if safe else "") + f"➡️ الهدف التالي · next TP{SUP[i + 1]} {f(t[f't{i + 1}'])}"
             if i == 1 and m == "be":
                 line += f"\n🔒 الوقف إلى الدخول · stop moved to entry {f(t['entry'])}: no loss now"
             elif m == "hold":
-                line += f"\n🎯 الصفقة مستمرة حتى TP³، الوقف كما هو {f(t['stop'])} · holding for TP³, stop unchanged"
+                line += (f"\n🎯 الصفقة مفتوحة حتى TP³، الوقف كما هو {f(t['stop'])} وقد يُضرب · "
+                         f"still open, holding for TP³, stop unchanged: it can still stop out")
+            elif m == "lock" and i == 1:
+                line += f"\n🎯 الصفقة مفتوحة، الوقف كما هو {f(t['stop'])} حتى TP² · still open, stop unchanged until TP²"
             elif i == 2 and m == "lock":
                 line += f"\n🔒 الوقف إلى TP¹ {f(t['t1'])} · stop moved to TP¹: profit locked"
         out.append(line)
