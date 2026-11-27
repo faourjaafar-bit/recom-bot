@@ -94,6 +94,24 @@
    "passed": 0,
    "status": "closed",
    "r": 0.24
+  },
+  {
+   "key": "GOLDNOW|3672.8|11270817",
+   "sym": "GC=F",
+   "side": "sell",
+   "entry": 3672.8,
+   "stop": 3690.5,
+   "t1": 3668.4,
+   "t2": 3664.0,
+   "t3": 3659.6,
+   "win_at": 3,
+   "posted": 1795767420.0,
+   "filled": 1795767420.0,
+   "exit": 3672.8,
+   "passed": 1,
+   "be": true,
+   "status": "win",
+   "r": 0.08
   }
  ],
  "open": {},
