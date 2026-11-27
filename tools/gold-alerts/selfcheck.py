@@ -27,18 +27,26 @@ def check():
         if not cond:
             fails.append(rule)
 
-    # 1. follow every call to TP3: TP1 must not close the call; stop moves to entry
+    # 1. follow every call to TP3 (user, 2026-11-24); 2026-11-27 rebuild: gold HOLDS to TP3 with the stop unchanged,
+    # oil moves the stop to TP1 after TP2; Market Makers relays keep stop-to-entry after TP1
     t = trade()
     rt.step(t, bars([3615, 3611.5]))
     ok(t["status"] == "open" and t["passed"] == 1, "1: call closed at TP1 (must follow to TP3)")
     msgs = rt.short(t, ("open", 0))
-    ok(any("TP²" in m for m in msgs) and any("entry" in m for m in msgs), "1: TP1 reply must name next TP² and stop-to-entry")
+    ok(any("TP²" in m for m in msgs) and any("TP³" in m for m in msgs), "1: gold TP1 reply must name TP² and say it holds for TP³")
     rt.step(t, bars([3615, 3611.5, 3607.5, 3603.5]))
     ok(t["status"] == "win" and t["passed"] == 3, "1: TP3 not reached / not reported")
-    ok(abs(rt.realized_r(t, t["exit"]) - 2 / 3) < 0.01, "1: realized R of a full TP3 sell should be +0.67R")
+    ok(abs(rt.realized_r(t, t["exit"]) - 1.0) < 0.01, "1: gold held to TP3 must book the full tested R (+1R here)")
     t = trade()
     rt.step(t, bars([3615, 3611.5, 3616]))
-    ok(t["status"] == "win" and t.get("be"), "1: after TP1 a return to entry must be a breakeven win, not a loss")
+    ok(t["status"] == "open", "1: gold must NOT exit at entry after TP1 (hold to TP3, stop unchanged)")
+    t = trade()
+    t["kind"] = "relay"
+    rt.step(t, bars([3615, 3611.5, 3616]))
+    ok(t["status"] == "win" and t.get("be"), "1: a Market Makers relay keeps stop-to-entry after TP1")
+    t = dict(trade("buy", 80.0, 0.5), sym="CL=F", gold=False, t1=80.2, t2=80.4, t3=80.9)
+    rt.step(t, bars([80.0, 80.35, 80.1]))
+    ok(t["status"] == "win" and t.get("locked") and t["exit"] == 80.2, "1: oil after TP2 must lock profit at TP1")
     t = trade()
     rt.step(t, bars([3615, 3628]))
     ok(t["status"] == "loss", "1: stop before any target must be a loss")
@@ -49,7 +57,7 @@ def check():
     rt.step(t, bars(seq))
     rt.step(t, bars(seq + [3646.0]))
     rt.step(t, bars(seq + [3646.0, 3649.0]))
-    ok(t["status"] == "open" and t["passed"] == 2, "1: re-walked pre-TP1 bar booked a fake breakeven exit")
+    ok(t["status"] == "open" and t["passed"] == 2, "1: re-walked pre-TP1 bar booked a fake exit")
     # 3. noise headlines never count
     import news_rt
     ok(news_rt.score("Gold prices in Pakistan climb for a second consecutive day") == {}, "3: local price noise scored")

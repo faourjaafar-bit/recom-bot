@@ -204,6 +204,28 @@ def past_close(t, bars):
         t["status"], t["exit"] = "timeout", last[-1]["c"]
 
 
+# How a call is managed after its targets (user, 2026-11-27: "you are losing too much ... deal with winning properly",
+# then "Yes, switch"). Backtest on the live bots, same signals (gold 71 trades on real-time spot, oil 122):
+#   stop to entry after TP1 (old rule 1): gold +0.10R, oil +0.09R a trade - winners were cut short (gold 70% wins, -1.97R)
+#   hold: stop stays, exit at TP3 as tested:  gold +0.36R (both halves +)
+#   lock: after TP2 the stop moves to TP1:     oil  +0.21R (both halves +)
+# Market Makers relays keep their own rule (stop to entry after TP1), which their backtest used.
+MANAGE = {"GC=F": "hold", "CL=F": "lock"}
+
+
+def manage(t):
+    return "be" if t.get("kind") == "relay" else MANAGE.get(t.get("sym"), "be")
+
+
+def live_stop(t):
+    m, n = manage(t), t.get("passed", 0)
+    if m == "lock":
+        return t["t1"] if n >= 2 else t["stop"]
+    if m == "be":
+        return t["entry"] if n >= 1 else t["stop"]
+    return t["stop"]
+
+
 def step(t, bars, margin=1800):
     """Walk the bars since the post and update the trade. Same bar touching stop and target = stop.
     Each closed bar is walked ONCE (t["done_ts"]): re-walking the bars from before TP1 with the stop already moved to
@@ -227,11 +249,13 @@ def step(t, bars, margin=1800):
             return
         # every call is followed to TP3 (user, 2026-11-24: "where is TP2 and TP3"); after TP1 the stop moves to the
         # entry, so a call that hit a target can no longer lose. Same bar touching stop and target = stop.
-        stop = t["entry"] if t["passed"] >= 1 else t["stop"]
+        stop = live_stop(t)
         hit_stop = (x["h"] >= stop) if d < 0 else (x["l"] <= stop)
         best = x["l"] if d < 0 else x["h"]
         if hit_stop:
-            if t["passed"] >= 1:
+            if stop == t["t1"] and t["passed"] >= 2:
+                t["status"], t["exit"], t["locked"] = "win", t["t1"], True
+            elif stop == t["entry"] and t["passed"] >= 1:
                 t["status"], t["exit"], t["be"] = "win", t["entry"], True
             else:
                 t["status"], t["exit"] = "loss", t["stop"]
@@ -261,7 +285,10 @@ def move(t, lang, to):
 
 
 def realized_r(t, to):
-    """R of the whole call when a third is booked at each target it reached and the rest closes at `to`."""
+    """R of the whole call when a third is booked at each target it reached and the rest closes at `to`.
+    A "hold" call (gold) is one position to TP3 or the stop, as tested: R = the exit alone."""
+    if manage(t) == "hold":
+        return r_of(t, to)
     n = min(t.get("passed", 0), 3)
     if not n:
         return r_of(t, to)
@@ -515,9 +542,17 @@ def short(t, before):
             line += "🏆🥳 مبروك Congrats! الأهداف الثلاثة تحققت · all 3 targets hit, صفقة ناجحة"
         else:
             line += f"👏🎉 مبروك Congrats! ➡️ الهدف التالي · next TP{SUP[i + 1]} {f(t[f't{i + 1}'])}"
-            if i == 1:
+            m = manage(t)
+            if i == 1 and m == "be":
                 line += f"\n🔒 الوقف إلى الدخول · stop moved to entry {f(t['entry'])}: no loss now"
+            elif m == "hold":
+                line += f"\n🎯 الصفقة مستمرة حتى TP³، الوقف كما هو {f(t['stop'])} · holding for TP³, stop unchanged"
+            elif i == 2 and m == "lock":
+                line += f"\n🔒 الوقف إلى TP¹ {f(t['t1'])} · stop moved to TP¹: profit locked"
         out.append(line)
+    if t["status"] == "win" and t.get("locked"):
+        out.append(f"🔒 {f(t['t1'])} خروج عند TP¹ بعد TP² · out at TP¹ after TP²\n"
+                   f"✅ صفقة رابحة · a winning call: {realized_r(t, t['exit']):+.2f}R booked")
     if t["status"] == "win" and t.get("be"):
         out.append(f"🔒 {f(t['entry'])} خروج على الدخول بعد TP{SUP[t['passed']]} · out at entry after TP{SUP[t['passed']]}\n"
                    f"✅ صفقة رابحة · a winning call: {realized_r(t, t['exit']):+.2f}R booked")

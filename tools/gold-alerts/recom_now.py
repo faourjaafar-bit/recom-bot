@@ -36,6 +36,7 @@ def atr(bars, n=14):
 
 
 SCALP = {"GC=F": 5.0, "CL=F": 0.5}  # 50 pips: gold 1 pip = $0.10, oil $0.01
+PAUSED = {"NVDA"}  # user, 2026-11-27 ("Yes, switch"): 1 win in 3 calls and unreliable open prices
 COMMOD = {"GC=F": ("GOLD", "XAUUSD", "🥇"), "CL=F": ("OIL", "USOIL", "🛢️"), "NVDA": ("NVDA", "NVDA", "🟩🧠🎮")}  # @@ = gold + oil (user, 2026-11-23)
 
 
@@ -141,6 +142,9 @@ def main():
     chan = ga.load_env(ga.ENV_PATH).get("TELEGRAM_RECOM_ID")
     now = datetime.now(timezone.utc).timestamp()
     for sym in COMMOD:  # gold, then oil
+        if sym in PAUSED:
+            print(sym, "paused")
+            continue
         try:
             if sym in busy and mode == "send" and chan and market_shifted(sym, chan):
                 busy.discard(sym)  # closed on a total market shift: a fresh call in the new direction follows
