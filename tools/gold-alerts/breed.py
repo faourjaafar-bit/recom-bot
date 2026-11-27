@@ -144,9 +144,17 @@ def triggers(b, P, names=NAMES):
 # gold ldn : fade 1-hour breakouts, 3 ATR, 0.25R         train 87% (125)  unseen 92% (53), +0.13R
 # oil asia : RSI reversal against trend, 80 pips, 1.5R   train 58% (48)   unseen 48% (25), +0.08R (no 78% bot survived)
 # oil ldn  : pullback, 3 ATR, 0.33R                      train 80% (41)   unseen 84% (19), +0.07R
-LIVE = {"GC=F": [("ema_cross", "with", "asia", ("pips", 120), 0.33, 24, "news_off"),
-                 ("brk12", "against", "ldn", ("atr", 3.0), 0.25, 48, "skip_news"),
-                 ("ema_cross", "against", "ny", ("pips", 120), 0.33, 48, "skip_news")],
+# gold re-bred 2026-11-27 (user: "win should be double the loss"). The 78%-win bots took a quarter to a third of their
+# stop and lost on 6 older months (rebreed.py: -0.05 / -0.11 / +0.01R). The new ones passed tuning on those 6 months
+# and both unseen 60-day sets; avg R per trade, tuning / unseen Bybit / unseen Yahoo, then 2-27 Nov on real-time OANDA:
+# gold asia: 3-candle volume run, 80 pips, 3R      +0.08 / +0.07 / +0.08   OANDA +0.38 (59 trades)
+# gold ldn : RSI turn with the trend, 2 ATR, 2R    +0.11 / +0.28 / +0.46   OANDA +0.23 (11 trades)
+# gold ny  : RSI turn with the trend, 80 pips, 2R  +0.11 / +0.42 / +0.30   OANDA -0.04 (9 trades: too few to judge)
+# before: ema_cross with asia 120 pips 0.33R 24 news_off; brk12 against ldn 3 ATR 0.25R 48 skip_news;
+#         ema_cross against ny 120 pips 0.33R 48 skip_news  (cache/breed.py.bak-goldswitch-1127)
+LIVE = {"GC=F": [("momentum3", "none", "asia", ("pips", 80), 3.0, 24),
+                 ("rsi_rev", "with", "ldn", ("atr", 2.0), 2.0, 24),
+                 ("rsi_rev", "with", "ny", ("pips", 80), 2.0, 48)],
         # oil re-bred 2026-11-26 (rebreed.py: tuned on 6 older months, then profitable on the last 60 days on two feeds;
         # oil_feed_test.py: also positive on real-time FX:USOIL bars, where the three bots before them were about flat
         # and lost when entered 10 minutes late on Yahoo). avg R per trade, tuning / unseen Bybit / unseen Yahoo:

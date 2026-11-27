@@ -217,7 +217,11 @@ def run(place=True):
                 stop = px * (1 + (t["stop"] - t["entry"]) / t["entry"])
                 target = px * (1 + (t[f"t{w}"] - t["entry"]) / t["entry"])
                 by_risk = eq * lim["max_loss_per_trade_pct_of_equity"] / 100 / abs(px - stop) * min(t.get("size", 1.0), 1.0)  # desk confidence
-                by_size = eq * lim["max_position_pct_of_equity"] / 100 / px
+                # the demo may use leverage so that the 1% risk is real (demo_max_position_pct_of_equity); the live
+                # account always keeps max_position_pct_of_equity
+                cap = lim["max_position_pct_of_equity"] if account_live else \
+                    lim.get("demo_max_position_pct_of_equity", lim["max_position_pct_of_equity"])
+                by_size = eq * cap / 100 / px
                 qty = rnd(min(by_risk, by_size), step)
                 if qty < minq:
                     state[key] = {"status": "skipped", "symbol": sym, "why": f"size {qty} below the minimum {minq}"}
