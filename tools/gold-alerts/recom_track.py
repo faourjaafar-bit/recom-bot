@@ -679,7 +679,8 @@ if __name__ == "__main__":
             ga.log(f"alpaca paper exec failed: {e}")
         try:  # and on Bybit (bybit_exec.py): demo unless the user switched bybit_mode to live
             lim = load(os.path.join(HERE, "..", "trading-safety", "risk_limits.json"), {})
-            if lim.get("paper_auto_orders"):
+            # not in the cloud: Bybit does not answer GitHub's servers; the Mac job exec_local.py is the one executor
+            if lim.get("paper_auto_orders") and not os.environ.get("GITHUB_ACTIONS"):
                 import bybit_exec
                 bybit_exec.run(place=True)
                 bybit_exec.probe_terms()  # hourly until Bybit accepts gold / oil / NVDA on demo
