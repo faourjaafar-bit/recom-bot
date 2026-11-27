@@ -18,7 +18,10 @@
    "t3": 3598.0,
    "id": 2164,
    "ts": 1795708971.0,
-   "status": "new"
+   "status": "win",
+   "passed": 3,
+   "r": 1.41,
+   "pips": 350
   },
   {
    "side": "sell",
