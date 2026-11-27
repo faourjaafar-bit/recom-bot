@@ -1,1 +1,24 @@
-{}
+{
+ "GOLDPLAN|3555|1795813230": {
+  "sym": "GC=F",
+  "gold": true,
+  "side": "sell",
+  "entry": 3554.7073471069334,
+  "stop": 3602.213557434082,
+  "t1": 3507.201136779785,
+  "t2": 3459.6949264526365,
+  "t3": 3412.188716125488,
+  "posted": 1795813230.112382,
+  "valid": 1796076000.0,
+  "filled": null,
+  "passed": 0,
+  "status": "pending",
+  "hold": null,
+  "kind": "plan",
+  "size": 1.0,
+  "msg": 414,
+  "win_at": 3,
+  "close_by": 1796076000.0,
+  "manage": "hold"
+ }
+}
