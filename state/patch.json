@@ -141,5 +141,12 @@
     "r": 1.71
    }
   }
- }
+ },
+ "say": [
+  {
+   "id": "fix-3635-1127",
+   "reply": 403,
+   "text": "📌 تصحيح · Correction — 🥇BUY 3635.3\nبعد TP¹ أعلنّا نقل الوقف إلى الدخول، فالصفقة أُغلقت على الدخول بلا خسارة. رسالة «SL -80 pips» كانت خطأً منّا، نعتذر.\nAfter TP¹ we announced the stop at entry, so this call closed at the entry with no loss. The \"SL -80 pips\" message was our mistake. Sorry.\n\nمن الآن · From now on:\n• كل صفقة تبقى على القاعدة التي نُشرت بها · each call keeps the rule it was posted with\n• «مبروك» فقط عندما لا يمكن أن تخسر الصفقة · \"Congrats\" only once a call can no longer lose"
+  }
+ ]
 }
