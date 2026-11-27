@@ -618,8 +618,8 @@
  },
  {
   "key": "GOLDNOW|3635.34|11271446",
-  "status": "loss",
-  "r": -1.0,
+  "status": "win",
+  "r": 0.22,
   "closed": 1795792389.402487,
   "sym": "GC=F",
   "side": "buy",
@@ -631,6 +631,9 @@
   "win_at": 3,
   "posted": 1795790772.010561,
   "filled": 1795790772.010561,
-  "exit": 3627.34
+  "exit": 3635.34,
+  "passed": 1,
+  "be": true,
+  "manage": "be"
  }
 ]
