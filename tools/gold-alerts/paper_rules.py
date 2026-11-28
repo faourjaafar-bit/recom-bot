@@ -10,6 +10,12 @@ wins >= 2x losses, but negative on 2.4 years of hourly bars: too thin to post (c
         through the level, closes back on our side in its outer third, volume above its 20-bar average. Stop beyond
         that candle +0.1 ATR; target gold 2R, oil 3R; out at 16:55.
         Backtest: gold 62% wins PF 2.86 (24 trades); oil PF 2.30, wins 2.7x losses (28 trades).
+  SHIFT (Elder Santis "5-min structure shift", added 2026-11-28 "Yes, add it"): 4h close above a rising 4h EMA20 ->
+        longs only (mirror for shorts); a 30m demand zone = a small base (< 0.8 ATR30) right before a >= 2 ATR30 move,
+        last 5 days; NY 9:30-11:30 price taps the zone, then 5m makes a higher high and a higher low; enter when a
+        candle closes above the prior candle's high; stop under the tap low; target 2R; one a day. Backtest
+        (replayed through this code on 70 days of Yahoo 5m): gold 5 trades 4 wins +3.5R, oil 9 trades 7 wins +6.6R
+        (79% wins, PF 4-6) - very few trades.
 Bars: TradingView COMEX:GC1! / NYMEX:CL1! (the same futures the backtest used, with real volume; the free feed may
 be ~10 min late, so messages can lag, but entries/exits are the bar prices the backtest uses). Every run re-walks each
 trade from its own entry bar with its fixed stop/target, so no bar is walked with a stop from the future (critique 14).
@@ -30,8 +36,8 @@ from nyopen_paper import START_DAY, END_DAY, tell
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATE = os.path.join(HERE, "cache", "paper_rules.json")
 NY = ZoneInfo("America/New_York")
-SYMS = {"GOLD": {"tv": "COMEX:GC1!", "cost": 0.30, "dp": 1, "step": 1.0, "tgt": 2.0, "rules": ("VALUE",)},
-        "OIL": {"tv": "NYMEX:CL1!", "cost": 0.03, "dp": 2, "step": 0.05, "tgt": 3.0, "rules": ("VWAP", "VALUE")}}
+SYMS = {"GOLD": {"tv": "COMEX:GC1!", "cost": 0.30, "dp": 1, "step": 1.0, "tgt": 2.0, "rules": ("VALUE", "SHIFT")},
+        "OIL": {"tv": "NYMEX:CL1!", "cost": 0.03, "dp": 2, "step": 0.05, "tgt": 3.0, "rules": ("VWAP", "VALUE", "SHIFT")}}
 
 
 def ny(ts):
@@ -136,6 +142,100 @@ def signals(b, cfg, closed):
     return out
 
 
+def resample(b, mins):
+    out, cur = [], None
+    for x in b:
+        k = x["ts"] - x["ts"] % (mins * 60)
+        if cur and cur["ts"] == k:
+            cur.update(h=max(cur["h"], x["h"]), l=min(cur["l"], x["l"]), c=x["c"], v=cur["v"] + x["v"])
+        else:
+            cur = dict(x, ts=k)
+            out.append(cur)
+    return out
+
+
+def shift_signals(b, closed):
+    """SHIFT entries on today's closed bars, same logic as the scratchpad backtest elder_shift_test.py."""
+    b = b[:closed + 1]
+    a5 = atr(b)
+    b30, b4 = resample(b, 30), resample(b, 240)
+    a30, e4 = atr(b30), ema([x["c"] for x in b4], 20)
+    today, out, i4 = sess(b[-1]["ts"]), [], 0
+    for i in range(50, len(b)):
+        x = b[i]
+        t = hm(x["ts"])
+        if sess(x["ts"]) != today or not ((9, 30) <= t < (11, 30)) or ny(x["ts"]).hour >= 18:
+            continue
+        while i4 + 1 < len(b4) and b4[i4 + 1]["ts"] + 14400 <= x["ts"]:
+            i4 += 1
+        if i4 < 21:
+            continue
+        trend = 1 if b4[i4]["c"] > e4[i4] > e4[i4 - 1] else -1 if b4[i4]["c"] < e4[i4] < e4[i4 - 1] else 0
+        if not trend:
+            continue
+        zs = []
+        for k in range(1, len(b30) - 2):
+            z = b30[k]
+            if z["ts"] + 3 * 1800 > x["ts"] or z["ts"] < x["ts"] - 5 * 86400 or z["h"] - z["l"] > 0.8 * a30[k]:
+                continue
+            nxt = b30[k + 1:k + 3]
+            if trend == 1 and max(y["h"] for y in nxt) - z["h"] >= 2 * a30[k]:
+                zs.append((z["l"], z["h"]))
+            elif trend == -1 and z["l"] - min(y["l"] for y in nxt) >= 2 * a30[k]:
+                zs.append((z["l"], z["h"]))
+        if not any((trend == 1 and x["l"] <= hi and x["c"] >= lo) or (trend == -1 and x["h"] >= lo and x["c"] <= hi)
+                   for lo, hi in zs):
+            continue
+        ext, swing, hh, hl, entry = (x["l"], x["h"]) if trend == 1 else (x["h"], x["l"]), None, False, None, None
+        ext, swing = ext
+        for j in range(i + 1, min(i + 30, len(b))):
+            y = b[j]
+            if sess(y["ts"]) != today or hm(y["ts"]) >= (12, 30):
+                break
+            if trend == 1:
+                if y["l"] < ext and not hh:
+                    ext, swing = y["l"], y["h"]
+                    continue
+                if y["l"] < ext:
+                    break
+                if not hh:
+                    swing = max(swing, b[j - 1]["h"])
+                    hh = y["c"] > swing
+                    continue
+                if hl is None and y["c"] < b[j - 1]["c"]:
+                    hl = y["l"]
+                    continue
+                if hl is not None and y["c"] > b[j - 1]["h"]:
+                    entry = j
+                    break
+            else:
+                if y["h"] > ext and not hh:
+                    ext, swing = y["h"], y["l"]
+                    continue
+                if y["h"] > ext:
+                    break
+                if not hh:
+                    swing = min(swing, b[j - 1]["l"])
+                    hh = y["c"] < swing
+                    continue
+                if hl is None and y["c"] > b[j - 1]["c"]:
+                    hl = y["h"]
+                    continue
+                if hl is not None and y["c"] < b[j - 1]["l"]:
+                    entry = j
+                    break
+        if entry is None:
+            continue
+        ent, stop = b[entry]["c"], ext - trend * 0.05 * a5[entry]
+        risk = abs(ent - stop)
+        if risk > 0:
+            out.append(("SHIFT", entry, trend, ent, stop, ent + trend * 2 * risk, risk,
+                        f"4h trend {'up' if trend == 1 else 'down'}; tapped a 30m {'demand' if trend == 1 else 'supply'}"
+                        f" zone, 5m made a {'higher high + higher low' if trend == 1 else 'lower low + lower high'}"))
+        return out  # one a day
+    return out
+
+
 def walk(t, b, closed, e20, now):
     """('open', None) or (why, price) for trade t on closed bars."""
     start = next((j for j, x in enumerate(b) if x["ts"] == t["ts"]), None)
@@ -175,7 +275,7 @@ def run(now=None, send=True):
         return st
     for sym, cfg in SYMS.items():
         try:
-            b = tvbars.bars(cfg["tv"], "5", n=1500)
+            b = tvbars.bars(cfg["tv"], "5", n=5000)  # ~17 days: the 4h EMA20 needs them
         except Exception as e:
             print(sym, "bars failed:", e)
             continue
@@ -187,7 +287,8 @@ def run(now=None, send=True):
             key = f"{rule}|{sym}"
             t = st["open"].get(key)
             if t is None and START_DAY <= day <= END_DAY:
-                for r, i, side, ent, stop, tgt, risk, note in signals(b, cfg, closed):
+                sigs = shift_signals(b, closed) if rule == "SHIFT" else signals(b, cfg, closed)
+                for r, i, side, ent, stop, tgt, risk, note in sigs:
                     sid = f"{key}|{b[i]['ts']}"
                     if r != rule or sid in st["seen"] or (st["done"] and any(
                             h["rule"] == rule and h["sym"] == sym and h["exit_ts"] > b[i]["ts"] for h in st["done"])):
